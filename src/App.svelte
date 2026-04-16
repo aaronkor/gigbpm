@@ -4,7 +4,6 @@
   import SetlistList from './components/SetlistList.svelte'
   import Settings from './components/Settings.svelte'
   import type { Setlist } from './lib/types'
-  import { performanceStore } from './stores/performance'
 
   type Screen =
     | { name: 'setlist-list' }
@@ -15,7 +14,6 @@
   let screen = $state<Screen>({ name: 'setlist-list' })
 
   function exitPerformance(): void {
-    performanceStore.exit()
     screen = { name: 'setlist-list' }
   }
 </script>
