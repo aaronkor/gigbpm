@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte'
+  import { onDestroy, tick } from 'svelte'
 
   import Toast from './Toast.svelte'
 
@@ -18,6 +18,7 @@
   let renameValue = $state('')
   let toastTimer: ReturnType<typeof setTimeout> | null = null
   let renameInput = $state<HTMLInputElement | null>(null)
+  let expandedId = $state<string | null>(null)
 
   function toast(message: string, duration = 2500): void {
     if (toastTimer) {
@@ -38,6 +39,7 @@
   }
 
   function startRename(setlist: Setlist): void {
+    expandedId = null
     renamingId = setlist.id
     renameValue = setlist.name
   }
@@ -76,6 +78,10 @@
     exportSetlist(setlist)
   }
 
+  onDestroy(() => {
+    if (toastTimer) clearTimeout(toastTimer)
+  })
+
   $effect(() => {
     if (!renamingId) {
       return
@@ -103,17 +109,33 @@
             onkeydown={(event) => event.key === 'Enter' && commitRename(setlist.id)}
           />
         {:else}
-          <button class="row-main" onclick={() => onOpenSetlist(setlist)}>
-            <span class="row-name">{setlist.name}</span>
-            <span class="row-meta">
-              {setlist.songs.length} song{setlist.songs.length !== 1 ? 's' : ''}
-            </span>
-          </button>
-          <div class="row-actions">
-            <button onclick={() => startRename(setlist)}>Rename</button>
-            <button onclick={() => handleExport(setlist)}>Export</button>
-            <button class="danger" onclick={() => setlistsStore.remove(setlist.id)}>Delete</button>
+          <div class="row-header">
+            <button class="row-main" onclick={() => onOpenSetlist(setlist)}>
+              <span class="row-name">{setlist.name}</span>
+              <span class="row-meta">
+                {setlist.songs.length} song{setlist.songs.length !== 1 ? 's' : ''}
+              </span>
+            </button>
+            <button
+              class="arrow-btn"
+              class:open={expandedId === setlist.id}
+              onclick={() => {
+                expandedId = expandedId === setlist.id ? null : setlist.id
+              }}
+              aria-label={expandedId === setlist.id ? 'Collapse actions' : 'Expand actions'}
+            >
+              {expandedId === setlist.id ? '▲' : '▼'}
+            </button>
           </div>
+          {#if expandedId === setlist.id}
+            <div class="row-actions">
+              <button onclick={() => startRename(setlist)}>Rename</button>
+              <button onclick={() => handleExport(setlist)}>Export</button>
+              <button class="danger" onclick={() => setlistsStore.remove(setlist.id)}>
+                Delete
+              </button>
+            </div>
+          {/if}
         {/if}
       </div>
     {/each}
@@ -185,8 +207,13 @@
     overflow: hidden;
   }
 
+  .row-header {
+    display: flex;
+    align-items: center;
+  }
+
   .row-main {
-    width: 100%;
+    flex: 1;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -197,6 +224,20 @@
     color: var(--text);
     cursor: pointer;
     text-align: left;
+  }
+
+  .arrow-btn {
+    align-self: stretch;
+    padding: 0 16px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  .arrow-btn.open {
+    color: var(--indigo);
   }
 
   .row-name {
