@@ -27,7 +27,6 @@ GigBPM is a mobile-first Progressive Web App (PWA) that helps musicians manage a
 - Cloud sync or multi-device data sharing
 - Time signatures or bar counting — steady click only
 - Recording, playback, or audio mixing
-- Tap-anywhere gesture to advance (button only)
 
 ---
 
@@ -156,7 +155,9 @@ Accessible from the gear icon on the Setlist List screen.
 
 A standalone TypeScript module (`src/lib/metronome.ts`) with no Svelte dependency.
 
-**Scheduling:** Uses `AudioContext` lookahead scheduling (~100ms ahead) — clicks are scheduled using `AudioContext.currentTime` rather than `setInterval`, ensuring click-perfect timing regardless of JS thread load.
+**Timing accuracy is the single most critical requirement of this module.** A metronome that drifts or stutters is worse than no metronome. Musicians depend on it as their tempo reference during live performance.
+
+**Scheduling:** Uses `AudioContext` lookahead scheduling (~100ms ahead) — clicks are scheduled using `AudioContext.currentTime` rather than `setInterval`, ensuring click-perfect timing regardless of JS thread load. `setInterval` and `setTimeout` are explicitly forbidden for click scheduling due to their susceptibility to browser throttling and jitter.
 
 **Click sound:** Synthesized woodblock — short filtered noise burst via Web Audio API nodes (no audio file required).
 
