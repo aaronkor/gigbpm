@@ -94,13 +94,7 @@ function createSetlistsStore() {
     },
 
     importSetlist(setlist: Setlist): void {
-      const imported: Setlist = {
-        ...setlist,
-        id: crypto.randomUUID(),
-        songs: setlist.songs.map((song) => ({ ...song, id: crypto.randomUUID() })),
-      }
-
-      updateAll((all) => [...all, imported])
+      updateAll((all) => [...all, setlist])
     },
   }
 }

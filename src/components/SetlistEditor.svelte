@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte'
   import { dndzone, type DndEvent } from 'svelte-dnd-action'
 
   import SongEditor from './SongEditor.svelte'
@@ -90,6 +91,10 @@
     editingSong = null
     addingNew = false
   }
+
+  onDestroy(() => {
+    if (toastTimer) clearTimeout(toastTimer)
+  })
 
   $effect(() => {
     if (!isDragging) {

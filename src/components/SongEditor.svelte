@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte'
+  import { onDestroy, tick } from 'svelte'
 
   import type { Song } from '../lib/types'
 
@@ -71,6 +71,10 @@
 
     onSave({ name: name.trim(), bpm: clamp(bpm) })
   }
+
+  onDestroy(() => {
+    if (tapTimer) clearTimeout(tapTimer)
+  })
 
   $effect(() => {
     name = song?.name ?? ''

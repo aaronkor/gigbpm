@@ -46,6 +46,24 @@ describe('validateImport', () => {
       validateImport({ version: 1, setlist: { name: 'X', songs: [{ name: 'S', bpm: 'fast' }] } }),
     ).toThrow()
   })
+
+  it('throws when bpm is below minimum', () => {
+    expect(() =>
+      validateImport({ version: 1, setlist: { name: 'X', songs: [{ name: 'S', bpm: 0 }] } }),
+    ).toThrow('BPM out of range')
+  })
+
+  it('throws when bpm is above maximum', () => {
+    expect(() =>
+      validateImport({ version: 1, setlist: { name: 'X', songs: [{ name: 'S', bpm: 9999 }] } }),
+    ).toThrow('BPM out of range')
+  })
+
+  it('throws when version is not 1', () => {
+    expect(() =>
+      validateImport({ version: 2, setlist: { name: 'X', songs: [] } }),
+    ).toThrow('Unsupported version')
+  })
 })
 
 describe('buildExportPayload', () => {

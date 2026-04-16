@@ -1,3 +1,4 @@
+import { BPM_MAX, BPM_MIN } from './types'
 import type { Setlist } from './types'
 
 export interface ExportPayload {
@@ -14,6 +15,11 @@ export function validateImport(data: unknown): Setlist {
   }
 
   const root = data as Record<string, unknown>
+
+  if (root.version !== 1) {
+    throw new Error('Unsupported version')
+  }
+
   const setlist = root.setlist as Record<string, unknown>
 
   if (!setlist || typeof setlist !== 'object') {
@@ -41,6 +47,10 @@ export function validateImport(data: unknown): Setlist {
 
     if (typeof song.bpm !== 'number' || Number.isNaN(song.bpm)) {
       throw new Error('Invalid song bpm')
+    }
+
+    if (song.bpm < BPM_MIN || song.bpm > BPM_MAX) {
+      throw new Error('BPM out of range')
     }
 
     return {
