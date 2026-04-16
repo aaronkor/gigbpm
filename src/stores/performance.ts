@@ -27,7 +27,6 @@ function createNoopMetronome(): Metronome {
     setBpm(): void {},
     onBeat(callback: () => void): void {
       beatCallback = callback
-      void beatCallback
     },
     get isRunning() {
       return false
@@ -196,6 +195,26 @@ function createPerformanceStore() {
 
       metronome.resume()
       store.set(createState(state.setlist, state.songIndex, true, false))
+    },
+
+    prev(): void {
+      const state = get(store)
+
+      if (!state.setlist || state.setlist.songs.length === 0) {
+        return
+      }
+
+      const prevIndex =
+        (state.songIndex - 1 + state.setlist.songs.length) % state.setlist.songs.length
+      const prevSong = state.setlist.songs[prevIndex] ?? null
+
+      if (!prevSong) {
+        return
+      }
+
+      metronome.setBpm(prevSong.bpm)
+      maybeAnnounce(prevSong)
+      store.set(createState(state.setlist, prevIndex, state.running, state.paused))
     },
   }
 }
