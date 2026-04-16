@@ -9,30 +9,105 @@
 
   let name = $state(song?.name ?? '')
   let bpm = $state(song?.bpm ?? 120)
+  let tapTimes: number[] = []
+  let tapCount = $state(0)
+  let tapTimer: ReturnType<typeof setTimeout> | null = null
+
+  function clamp(value: number): number {
+    return Math.max(20, Math.min(300, Math.round(value)))
+  }
+
+  function handleBpmInput(event: Event): void {
+    const value = Number.parseInt((event.target as HTMLInputElement).value, 10)
+
+    if (!Number.isNaN(value)) {
+      bpm = clamp(value)
+    }
+  }
+
+  function adjust(delta: number): void {
+    bpm = clamp(bpm + delta)
+  }
+
+  function handleTap(): void {
+    const now = performance.now()
+    tapTimes.push(now)
+
+    if (tapTimes.length > 4) {
+      tapTimes.shift()
+    }
+
+    tapCount = tapTimes.length
+
+    if (tapTimes.length >= 2) {
+      const intervals: number[] = []
+
+      for (let index = 1; index < tapTimes.length; index += 1) {
+        intervals.push(tapTimes[index] - tapTimes[index - 1])
+      }
+
+      const average = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length
+      bpm = clamp(60000 / average)
+    }
+
+    if (tapTimer) {
+      clearTimeout(tapTimer)
+    }
+
+    tapTimer = setTimeout(() => {
+      tapTimes = []
+      tapCount = 0
+      tapTimer = null
+    }, 2000)
+  }
 
   function handleSave(): void {
     if (!name.trim()) {
       return
     }
 
-    onSave({ name: name.trim(), bpm })
+    onSave({ name: name.trim(), bpm: clamp(bpm) })
   }
 </script>
 
 <div class="overlay" role="presentation" onclick={onCancel}></div>
 
 <div class="sheet" role="dialog" aria-label={song ? 'Edit Song' : 'Add Song'}>
+  <div class="handle"></div>
   <h2>{song ? 'Edit Song' : 'Add Song'}</h2>
 
-  <label class="field">
-    <span>Song Name</span>
-    <input type="text" bind:value={name} placeholder="Song name" autofocus />
-  </label>
+  <div class="field">
+    <label for="song-name">Song Name</label>
+    <input id="song-name" type="text" bind:value={name} placeholder="e.g. Autumn Leaves" autofocus />
+  </div>
 
-  <label class="field">
-    <span>BPM</span>
-    <input type="number" bind:value={bpm} min="20" max="300" />
-  </label>
+  <div class="field">
+    <label for="song-bpm">BPM</label>
+    <div class="bpm-row">
+      <button class="adj" onclick={() => adjust(-1)} aria-label="Decrease BPM">-</button>
+      <input
+        id="song-bpm"
+        type="number"
+        value={bpm}
+        min="20"
+        max="300"
+        oninput={handleBpmInput}
+        onblur={() => {
+          bpm = clamp(bpm)
+        }}
+      />
+      <button class="adj" onclick={() => adjust(1)} aria-label="Increase BPM">+</button>
+    </div>
+  </div>
+
+  <button class="tap-btn" class:active={tapCount > 0} onclick={handleTap}>
+    TAP TEMPO
+    {#if tapCount > 0}
+      <span class="tap-hint">{tapCount} tap{tapCount !== 1 ? 's' : ''}... keep going</span>
+    {:else}
+      <span class="tap-hint">Tap repeatedly to detect BPM</span>
+    {/if}
+  </button>
 
   <div class="actions">
     <button class="btn-cancel" onclick={onCancel}>Cancel</button>
@@ -59,8 +134,16 @@
     padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
     border-top: 1px solid var(--border);
+  }
+
+  .handle {
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto;
   }
 
   h2 {
@@ -74,17 +157,79 @@
     gap: 4px;
   }
 
-  .field span {
-    font-size: 12px;
+  label {
+    font-size: 10px;
     color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
   }
 
-  .field input {
+  input[type='text'],
+  input[type='number'] {
     background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text);
     padding: 10px 12px;
+    font-size: 14px;
+    width: 100%;
+  }
+
+  .bpm-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .bpm-row input {
+    flex: 1;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    font-family: monospace;
+  }
+
+  .adj {
+    width: 40px;
+    height: 40px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .tap-btn {
+    background: var(--surface-2);
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    color: var(--indigo);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .tap-btn.active {
+    background: #1e1b4b;
+    border-color: var(--indigo);
+    box-shadow: 0 0 16px rgba(129, 140, 248, 0.25);
+  }
+
+  .tap-hint {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--indigo);
+    opacity: 0.7;
   }
 
   .actions {
@@ -92,19 +237,15 @@
     gap: 8px;
   }
 
-  .btn-cancel,
-  .btn-save {
-    flex: 1;
-    padding: 12px;
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    cursor: pointer;
-  }
-
   .btn-cancel {
     background: var(--surface-2);
     border: 1px solid var(--border);
     color: var(--text);
+    flex: 1;
+    padding: 13px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    cursor: pointer;
   }
 
   .btn-save {
@@ -112,6 +253,11 @@
     border: none;
     color: #000;
     font-weight: 700;
+    flex: 2;
+    padding: 13px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    cursor: pointer;
   }
 
   .btn-save:disabled {
