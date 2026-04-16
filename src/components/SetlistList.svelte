@@ -3,6 +3,7 @@
 
   import Toast from './Toast.svelte'
 
+  import { exportSetlist, validateImport } from '../lib/importexport'
   import type { Setlist } from '../lib/types'
   import { setlistsStore } from '../stores/setlists'
 
@@ -52,13 +53,27 @@
     renameValue = ''
   }
 
-  function handleImportClick(): void {
-    toast('Import will be wired in Chunk 6')
+  async function handleImport(event: Event): Promise<void> {
+    const file = (event.target as HTMLInputElement).files?.[0]
+
+    if (!file) {
+      return
+    }
+
+    try {
+      const text = await file.text()
+      const setlist = validateImport(JSON.parse(text))
+      setlistsStore.importSetlist(setlist)
+      toast('Setlist imported')
+    } catch {
+      toast("Couldn't import setlist: invalid file")
+    }
+
+    ;(event.target as HTMLInputElement).value = ''
   }
 
   function handleExport(setlist: Setlist): void {
-    void setlist
-    toast('Export will be wired in Chunk 6')
+    exportSetlist(setlist)
   }
 
   $effect(() => {
@@ -109,7 +124,10 @@
   </div>
 
   <div class="bottom-actions">
-    <button class="btn-secondary" onclick={handleImportClick}>Import</button>
+    <label class="btn-secondary">
+      Import
+      <input type="file" accept=".json" onchange={handleImport} hidden />
+    </label>
     <button class="btn-primary" onclick={handleCreate}>+ New Setlist</button>
   </div>
 </div>
