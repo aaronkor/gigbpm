@@ -161,3 +161,96 @@ Verified the served preview returned `200` for:
 - Chunks 1 through 6 are implemented.
 - User reported running the Task 19 smoke test.
 - The repo was clean before this log file was added.
+
+## V2 Features Session
+
+### Session Summary
+
+This follow-up session implemented the v2 feature set from:
+
+- `docs/superpowers/specs/2026-04-16-gigbpm-features-v2-design.md`
+- `docs/superpowers/plans/2026-04-16-gigbpm-features-v2.md`
+
+Completed work:
+
+- Added `performanceStore.prev()` in `src/stores/performance.ts`
+- Added `src/tests/performance.test.ts` covering wrap-around, empty-state, single-song, and paused-state behavior
+- Updated `src/components/SetlistList.svelte` to use a single expanded row with `▼/▲` reveal for Rename / Export / Delete
+- Updated `src/components/PerformanceScreen.svelte` to add:
+  - a top-left TTS toggle icon
+  - a `PREV` control button
+  - `mediaSession` support for `previoustrack` to match the existing `nexttrack` behavior
+
+Commits from this session:
+
+- `3f53b98` `feat: add performanceStore.prev() with wrap-around`
+- `7a3626e` `feat: add expand/collapse arrow to setlist rows`
+- `abff501` `feat: add TTS toggle and PREV button to performance screen`
+
+### Implementation Insights
+
+#### 1. `prev()` should mirror `next()` behavior, not invent a separate flow
+
+- The safest implementation was to keep `prev()` behavior parallel to `next()`:
+  - compute the wrapped index
+  - update metronome BPM immediately
+  - announce the song if TTS is enabled
+  - preserve `running` and `paused` state exactly as-is
+- This keeps previous-track navigation predictable during live use:
+  - running stays running
+  - paused stays paused
+  - screen state and metronome state stay aligned
+
+#### 2. Media-session parity matters once a transport control exists
+
+- Because `NEXT` already had `mediaSession` integration, `PREV` needed the same treatment.
+- Without `previoustrack`, the on-screen button would work but external controls would be inconsistent:
+  - lock-screen controls
+  - headset or Bluetooth transport controls
+  - OS/browser media overlays
+- The right model is: if a transport action exists in the performance UI, it should generally exist in `mediaSession` too.
+
+#### 3. The setlist action strip needed a visible mobile-first disclosure pattern
+
+- The original always-open action strip worked functionally but consumed too much vertical space.
+- The new accordion pattern is better aligned with the product intent because it:
+  - reduces visual noise
+  - keeps the primary tap target focused on opening a setlist
+  - still exposes Rename / Export / Delete with a discoverable control
+- Collapsing the expanded row before entering rename mode avoids mixed states and keeps the row layout stable.
+
+#### 4. Existing worktree state must be checked before editing
+
+- During this session, unrelated files were already dirty in the repo.
+- Before touching `SetlistList.svelte`, the current file content and diff were checked to make sure the new accordion changes did not overwrite unrelated work.
+- That pattern should be repeated in future sessions whenever the repo is not clean.
+
+#### 5. Keep task commits narrowly scoped when docs are structured by task
+
+- The v2 plan naturally broke into three isolated commits:
+  - store logic
+  - setlist UI
+  - performance UI
+- That made verification and rollback clearer and kept the implementation history aligned with the spec.
+
+### Verification Performed In V2 Session
+
+- `npm test -- --run src/tests/performance.test.ts`
+- `npm test -- --run`
+- `npm run check`
+- `npm run build`
+
+Verified outcomes:
+
+- `performanceStore.prev()` passed dedicated store tests
+- full Vitest suite passed
+- Svelte/TypeScript checks completed with 0 errors and 0 warnings
+- production build completed successfully
+
+### Reference For Future Sessions After V2
+
+- When adding performance transport features, update both:
+  - the on-screen controls
+  - the `mediaSession` action handlers
+- When adding row-level actions in list screens, prefer collapsed-by-default mobile patterns unless persistent visibility is required by the spec.
+- When modifying files in a dirty worktree, inspect the current diff first and avoid mixing unrelated user edits into new task commits.
