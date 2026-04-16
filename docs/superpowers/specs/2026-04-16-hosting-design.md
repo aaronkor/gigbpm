@@ -8,7 +8,6 @@
 GigBPM is a pure static PWA — 192 KB total output, no backend, no API calls, no environment variables. All data lives in `localStorage`. The app needs a host that provides:
 
 - HTTPS (mandatory for service workers and PWA install)
-- SPA routing fallback (serve `index.html` for unknown paths)
 - Auto-deploy on `git push main`
 - Free tier sufficient for "ship and see" scale
 
@@ -29,10 +28,6 @@ Vercel is the chosen host. It auto-detects Vite projects, provides a global CDN,
       "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
     },
     {
-      "source": "/workbox-(.*)\\.js",
-      "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
-    },
-    {
       "source": "/assets/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     }
@@ -40,9 +35,9 @@ Vercel is the chosen host. It auto-detects Vite projects, provides a global CDN,
 }
 ```
 
-**Rewrite rule:** Svelte uses client-side routing. Without the rewrite, navigating directly to any route returns a 404. The wildcard rewrite sends all unmatched paths to `index.html`, letting the Svelte router take over.
+**Rewrite rule:** GigBPM currently uses in-memory state navigation (a `screen` variable in `App.svelte`) — there are no URL-based routes. The rewrite is included as forward-compatibility: if URL routing is added later, this prevents 404s on direct navigation without requiring a config change at that point.
 
-**Service worker headers:** `sw.js` and the Workbox runtime (`workbox-*.js`) must never be cached by the browser. If they are cached with a long TTL, deployed updates won't reach users — the old service worker stays active and continues serving stale precached assets. `no-store` prevents any caching; `must-revalidate` is belt-and-suspenders.
+**Service worker headers:** `sw.js` must never be cached by the browser. If it is cached with a long TTL, deployed updates won't reach users — the old service worker stays active and continues serving stale precached assets. `no-store` prevents any caching; `must-revalidate` is belt-and-suspenders. Note: vite-plugin-pwa with `registerType: 'autoUpdate'` bundles the Workbox runtime directly into `sw.js` — no separate `workbox-*.js` file is emitted at the root.
 
 **Asset headers:** Vite content-hashes all files in `assets/` (e.g., `index-BxK2a9f1.js`). The filename changes on every build, so cached copies are never stale. `max-age=31536000, immutable` tells browsers and CDN edges to cache these forever and never revalidate — maximum performance, zero risk.
 
@@ -78,4 +73,4 @@ After the first deploy:
 3. Open DevTools → Application → Manifest — manifest parsed, icons loaded
 4. Install to home screen on mobile — app opens in standalone mode (no browser chrome)
 5. Toggle airplane mode — app still fully functional (Workbox precache serves all assets offline)
-6. Deploy a change — within ~30 seconds the new version is live; autoUpdate prompts silently refresh
+6. Deploy a change — within ~30 seconds the new service worker is installed. Already-open sessions receive the update on next page focus/navigation (service worker lifecycle); new tabs and page loads get the update immediately.
