@@ -136,7 +136,7 @@ Full-screen, minimal UI optimised for dark stage environments.
 - After the last song, "Next" loops back to song 1
 - Screen timeout managed by OS (no wake lock)
 - Hardware media `nexttrack` action (headphone remote / some Bluetooth pedals) mapped to Next
-- MIDI CC bindings (if configured) mapped to Next and Pause/Stop
+- MIDI CC bindings (if configured) mapped to Next and Pause/Stop (Pause and Stop are the same action — one press toggles pause/resume)
 
 ### 5. Settings Screen
 
@@ -169,7 +169,7 @@ metronome.stop(): void
 metronome.pause(): void
 metronome.resume(): void
 metronome.setBpm(bpm: number): void   // seamless BPM change mid-playback
-metronome.onBeat(callback: () => void): void
+metronome.onBeat(callback: () => void): void  // replaces any previously registered callback; one listener at a time
 ```
 
 **AudioContext:** On iOS, `AudioContext` requires a user gesture to start. The engine detects a suspended context and resumes it on the first user interaction (tap on Play).
@@ -225,6 +225,7 @@ metronome.onBeat(callback: () => void): void
 - **iOS Web MIDI:** The Web MIDI API is not supported in iOS Safari. Musicians using Bluetooth MIDI foot pedals on iPhone must use a third-party MIDI-capable browser or rely on the on-screen Next button and headphone remote.
 - **No wake lock:** The screen may dim during performance. This is intentional — the OS manages it, and the musician can tap to wake.
 - **No cloud sync:** Setlists are device-local. Use export/import to move setlists between devices.
+- **localStorage unavailable:** If the browser blocks storage (e.g. private browsing with full quota), the app will fail silently on save. This edge case is out of scope for v1.
 
 ---
 
