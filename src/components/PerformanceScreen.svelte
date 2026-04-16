@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
 
+  import { isTTSAvailable } from '../lib/tts'
   import { performanceStore } from '../stores/performance'
+  import { settingsStore } from '../stores/settings'
 
   let { onExit }: { onExit: () => void } = $props()
 
@@ -11,7 +13,7 @@
   type MediaNavigator = Navigator & {
     mediaSession?: {
       setActionHandler: (
-        action: 'nexttrack',
+        action: 'nexttrack' | 'previoustrack',
         handler: MediaSessionActionHandler | null,
       ) => void
     }
@@ -32,6 +34,7 @@
     })
 
     const mediaNavigator = navigator as MediaNavigator
+    mediaNavigator.mediaSession?.setActionHandler('previoustrack', () => performanceStore.prev())
     mediaNavigator.mediaSession?.setActionHandler('nexttrack', () => performanceStore.next())
   })
 
@@ -43,6 +46,7 @@
     performanceStore.metronome.onBeat(() => {})
 
     const mediaNavigator = navigator as MediaNavigator
+    mediaNavigator.mediaSession?.setActionHandler('previoustrack', null)
     mediaNavigator.mediaSession?.setActionHandler('nexttrack', null)
   })
 
@@ -59,10 +63,27 @@
 
     performanceStore.resume()
   }
+
+  function handleToggleTts(): void {
+    settingsStore.setAnnounceSongName(!settingsStore.announceSongName)
+  }
 </script>
 
 <div class="screen">
-  <button class="exit-btn" onclick={handleExit} aria-label="Exit performance">✕</button>
+  <div class="top-row">
+    {#if isTTSAvailable()}
+      <button
+        class="tts-btn"
+        class:is-on={$settingsStore.announceSongName}
+        onclick={handleToggleTts}
+        aria-label={$settingsStore.announceSongName ? 'Disable TTS' : 'Enable TTS'}
+      >
+        🔊
+      </button>
+    {/if}
+
+    <button class="exit-btn" onclick={handleExit} aria-label="Exit performance">✕</button>
+  </div>
 
   <div class="song-info">
     <div class="position" class:is-paused={$performanceStore.paused}>
@@ -82,6 +103,11 @@
   </div>
 
   <div class="controls">
+    <button class="prev-btn" onclick={() => performanceStore.prev()} aria-label="Previous song">
+      <span class="btn-icon">◀◀</span>
+      <span class="btn-label">PREV</span>
+    </button>
+
     <button
       class="pause-btn"
       class:is-paused={$performanceStore.paused}
@@ -111,14 +137,29 @@
     padding: 24px 20px 36px;
   }
 
+  .top-row {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .tts-btn,
   .exit-btn {
-    align-self: flex-end;
     background: none;
     border: none;
     color: var(--text-muted);
     font-size: 20px;
     cursor: pointer;
     padding: 4px;
+  }
+
+  .tts-btn {
+    opacity: 0.25;
+  }
+
+  .tts-btn.is-on {
+    opacity: 1;
   }
 
   .song-info {
@@ -193,6 +234,21 @@
     display: flex;
     align-items: center;
     gap: 24px;
+  }
+
+  .prev-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    cursor: pointer;
+    color: var(--text);
   }
 
   .pause-btn {
