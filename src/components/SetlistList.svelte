@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { tick } from 'svelte'
+
   import Toast from './Toast.svelte'
 
   import type { Setlist } from '../lib/types'
@@ -14,6 +16,7 @@
   let renamingId = $state<string | null>(null)
   let renameValue = $state('')
   let toastTimer: ReturnType<typeof setTimeout> | null = null
+  let renameInput = $state<HTMLInputElement | null>(null)
 
   function toast(message: string, duration = 2500): void {
     if (toastTimer) {
@@ -57,6 +60,14 @@
     void setlist
     toast('Export will be wired in Chunk 6')
   }
+
+  $effect(() => {
+    if (!renamingId) {
+      return
+    }
+
+    void tick().then(() => renameInput?.focus())
+  })
 </script>
 
 <div class="screen">
@@ -71,10 +82,10 @@
         {#if renamingId === setlist.id}
           <input
             class="rename-input"
+            bind:this={renameInput}
             bind:value={renameValue}
             onblur={() => commitRename(setlist.id)}
             onkeydown={(event) => event.key === 'Enter' && commitRename(setlist.id)}
-            autofocus
           />
         {:else}
           <button class="row-main" onclick={() => onOpenSetlist(setlist)}>

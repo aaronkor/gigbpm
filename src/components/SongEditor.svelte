@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { tick } from 'svelte'
+
   import type { Song } from '../lib/types'
 
   let { song, onSave, onCancel }: {
@@ -7,11 +9,12 @@
     onCancel: () => void
   } = $props()
 
-  let name = $state(song?.name ?? '')
-  let bpm = $state(song?.bpm ?? 120)
+  let name = $state('')
+  let bpm = $state(120)
   let tapTimes: number[] = []
   let tapCount = $state(0)
   let tapTimer: ReturnType<typeof setTimeout> | null = null
+  let nameInput = $state<HTMLInputElement | null>(null)
 
   function clamp(value: number): number {
     return Math.max(20, Math.min(300, Math.round(value)))
@@ -68,6 +71,20 @@
 
     onSave({ name: name.trim(), bpm: clamp(bpm) })
   }
+
+  $effect(() => {
+    name = song?.name ?? ''
+    bpm = song?.bpm ?? 120
+    tapTimes = []
+    tapCount = 0
+
+    if (tapTimer) {
+      clearTimeout(tapTimer)
+      tapTimer = null
+    }
+
+    void tick().then(() => nameInput?.focus())
+  })
 </script>
 
 <div class="overlay" role="presentation" onclick={onCancel}></div>
@@ -78,7 +95,13 @@
 
   <div class="field">
     <label for="song-name">Song Name</label>
-    <input id="song-name" type="text" bind:value={name} placeholder="e.g. Autumn Leaves" autofocus />
+    <input
+      id="song-name"
+      bind:this={nameInput}
+      type="text"
+      bind:value={name}
+      placeholder="e.g. Autumn Leaves"
+    />
   </div>
 
   <div class="field">

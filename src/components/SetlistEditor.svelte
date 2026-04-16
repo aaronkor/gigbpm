@@ -20,7 +20,7 @@
   } = $props()
 
   let current = $derived($setlistsStore.all.find((entry) => entry.id === setlist.id) ?? setlist)
-  let draftSongs = $state<Song[]>(current.songs)
+  let draftSongs = $state<Song[]>([])
   let isDragging = $state(false)
   let editingSong = $state<Song | null>(null)
   let addingNew = $state(false)
