@@ -1,0 +1,61 @@
+import { beforeEach, describe, expect, it } from 'vitest'
+
+import { loadSettings, loadSetlists, saveSettings, saveSetlists } from '../lib/storage'
+import { DEFAULT_SETTINGS, type AppSettings, type Setlist } from '../lib/types'
+
+const mockSetlist: Setlist = {
+  id: 'abc',
+  name: 'Test Gig',
+  songs: [{ id: 's1', name: 'Song One', bpm: 120 }],
+}
+
+beforeEach(() => {
+  localStorage.clear()
+})
+
+describe('loadSetlists', () => {
+  it('returns empty array when nothing stored', () => {
+    expect(loadSetlists()).toEqual([])
+  })
+
+  it('returns stored setlists', () => {
+    localStorage.setItem('gigbpm_setlists', JSON.stringify([mockSetlist]))
+    expect(loadSetlists()).toEqual([mockSetlist])
+  })
+
+  it('returns empty array on corrupt data', () => {
+    localStorage.setItem('gigbpm_setlists', 'not-json')
+    expect(loadSetlists()).toEqual([])
+  })
+})
+
+describe('saveSetlists', () => {
+  it('persists setlists to localStorage', () => {
+    saveSetlists([mockSetlist])
+    expect(JSON.parse(localStorage.getItem('gigbpm_setlists') ?? 'null')).toEqual([
+      mockSetlist,
+    ])
+  })
+})
+
+describe('loadSettings', () => {
+  it('returns DEFAULT_SETTINGS when nothing stored', () => {
+    expect(loadSettings()).toEqual(DEFAULT_SETTINGS)
+  })
+
+  it('merges stored settings with defaults', () => {
+    localStorage.setItem('gigbpm_settings', JSON.stringify({ announceSongName: true }))
+    expect(loadSettings().announceSongName).toBe(true)
+    expect(loadSettings().midi).toEqual(DEFAULT_SETTINGS.midi)
+  })
+})
+
+describe('saveSettings', () => {
+  it('persists settings to localStorage', () => {
+    const settings: AppSettings = { ...DEFAULT_SETTINGS, announceSongName: true }
+    saveSettings(settings)
+    expect(
+      JSON.parse(localStorage.getItem('gigbpm_settings') ?? 'null').announceSongName,
+    ).toBe(true)
+  })
+})

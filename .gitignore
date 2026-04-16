@@ -1,1 +1,14 @@
 .superpowers/
+.codex/
+.vscode/
+README.md
+public/favicon.svg
+public/icons.svg
+src/assets/
+src/lib/Counter.svelte
+svelte.config.js
+node_modules/
+dist/
+.svelte-kit/
+coverage/
+.DS_Store
