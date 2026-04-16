@@ -1,0 +1,31 @@
+{
+  "name": "gigbpm",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@tsconfig/svelte": "^5.0.8",
+    "@types/node": "^24.12.2",
+    "@vitest/ui": "^4.1.4",
+    "jsdom": "^29.0.2",
+    "svelte": "^5.55.1",
+    "svelte-check": "^4.4.6",
+    "typescript": "~6.0.2",
+    "vite": "^7.3.2",
+    "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^4.1.4",
+    "workbox-build": "^7.4.0",
+    "workbox-window": "^7.4.0"
+  },
+  "dependencies": {
+    "svelte-dnd-action": "^0.9.69"
+  }
+}
