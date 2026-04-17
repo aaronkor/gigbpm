@@ -93,16 +93,7 @@
     <div class="song-name">{$performanceStore.currentSong?.name ?? ''}</div>
   </div>
 
-  <div
-    class="bpm-ring"
-    class:on-beat={beatActive && $performanceStore.running}
-    class:is-paused={$performanceStore.paused}
-  >
-    <div class="bpm-number">{$performanceStore.currentSong?.bpm ?? '--'}</div>
-    <div class="bpm-label">BPM</div>
-  </div>
-
-  <div class="controls">
+  <div class="secondary-controls">
     <button class="prev-btn" onclick={() => performanceStore.prev()} aria-label="Previous song">
       <span class="btn-icon">◀◀</span>
       <span class="btn-label">PREV</span>
@@ -117,12 +108,21 @@
       <span class="btn-icon">{$performanceStore.running ? '⏸' : '▶'}</span>
       <span class="btn-label">{$performanceStore.running ? 'PAUSE' : 'RESUME'}</span>
     </button>
-
-    <button class="next-btn" onclick={() => performanceStore.next()} aria-label="Next song">
-      <span class="btn-icon">▶▶</span>
-      <span class="btn-label">NEXT</span>
-    </button>
   </div>
+
+  <div
+    class="bpm-ring"
+    class:on-beat={beatActive && $performanceStore.running}
+    class:is-paused={$performanceStore.paused}
+  >
+    <div class="bpm-number">{$performanceStore.currentSong?.bpm ?? '--'}</div>
+    <div class="bpm-label">BPM</div>
+  </div>
+
+  <button class="next-btn" onclick={() => performanceStore.next()} aria-label="Next song">
+    <span class="btn-icon">▶▶</span>
+    <span class="btn-label">NEXT</span>
+  </button>
 </div>
 
 <style>
@@ -134,7 +134,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    padding: 24px 20px 36px;
+    padding: 24px 20px calc(36px + env(safe-area-inset-bottom, 0px));
   }
 
   .top-row {
@@ -184,10 +184,10 @@
   }
 
   .bpm-ring {
-    width: min(72vw, 280px);
-    height: min(72vw, 280px);
-    max-width: 280px;
-    max-height: 280px;
+    width: min(72vw, 252px);
+    height: min(72vw, 252px);
+    max-width: 252px;
+    max-height: 252px;
     border-radius: 50%;
     border: 4px solid var(--border);
     background: var(--surface);
@@ -230,10 +230,10 @@
     margin-top: 4px;
   }
 
-  .controls {
+  .secondary-controls {
     display: flex;
     align-items: center;
-    gap: 24px;
+    gap: 20px;
   }
 
   .prev-btn {
@@ -271,8 +271,8 @@
   }
 
   .next-btn {
-    width: 96px;
-    height: 96px;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
     background: var(--accent);
     border: none;
