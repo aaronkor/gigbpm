@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { loadSettings, loadSetlists, saveSettings, saveSetlists } from '../lib/storage'
 import { DEFAULT_SETTINGS, type AppSettings, type Setlist } from '../lib/types'
+import { settingsStore } from '../stores/settings'
 
 const mockSetlist: Setlist = {
   id: 'abc',
@@ -43,9 +44,19 @@ describe('loadSettings', () => {
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS)
   })
 
+  it('returns wood as default clickSound', () => {
+    expect(loadSettings().clickSound).toBe('wood')
+  })
+
   it('merges stored settings with defaults', () => {
     localStorage.setItem('gigbpm_settings', JSON.stringify({ announceSongName: true }))
     expect(loadSettings().announceSongName).toBe(true)
+    expect(loadSettings().midi).toEqual(DEFAULT_SETTINGS.midi)
+  })
+
+  it('merges stored clickSound with defaults', () => {
+    localStorage.setItem('gigbpm_settings', JSON.stringify({ clickSound: 'beep' }))
+    expect(loadSettings().clickSound).toBe('beep')
     expect(loadSettings().midi).toEqual(DEFAULT_SETTINGS.midi)
   })
 })
@@ -57,5 +68,25 @@ describe('saveSettings', () => {
     expect(
       JSON.parse(localStorage.getItem('gigbpm_settings') ?? 'null').announceSongName,
     ).toBe(true)
+  })
+})
+
+describe('settingsStore.setClickSound', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    settingsStore.setClickSound('wood')
+  })
+
+  it('defaults clickSound to wood', () => {
+    expect(settingsStore.clickSound).toBe('wood')
+  })
+
+  it('updates clickSound and persists it', () => {
+    settingsStore.setClickSound('beep')
+
+    expect(settingsStore.clickSound).toBe('beep')
+    expect(JSON.parse(localStorage.getItem('gigbpm_settings') ?? '{}').clickSound).toBe('beep')
+
+    settingsStore.setClickSound('wood')
   })
 })

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createMetronome } from '../lib/metronome'
+import { createMetronome, previewClick } from '../lib/metronome'
 
 function makeMockContext() {
   let time = 0
@@ -109,6 +109,38 @@ describe('createMetronome - API', () => {
     const metronome = createMetronome(makeMockContext() as unknown as AudioContext)
 
     expect(() => metronome.setBpm(90)).not.toThrow()
+  })
+})
+
+describe('createMetronome - click sound', () => {
+  it('exposes setClickSound method', () => {
+    const metronome = createMetronome(makeMockContext() as unknown as AudioContext)
+
+    expect(typeof metronome.setClickSound).toBe('function')
+  })
+
+  it('setClickSound does not throw for any valid sound', () => {
+    const metronome = createMetronome(makeMockContext() as unknown as AudioContext)
+
+    expect(() => metronome.setClickSound('wood')).not.toThrow()
+    expect(() => metronome.setClickSound('beep')).not.toThrow()
+    expect(() => metronome.setClickSound('tick')).not.toThrow()
+  })
+
+  it('setClickSound can be called while running', () => {
+    const metronome = createMetronome(makeMockContext() as unknown as AudioContext)
+
+    metronome.start(120)
+
+    expect(() => metronome.setClickSound('beep')).not.toThrow()
+
+    metronome.stop()
+  })
+})
+
+describe('previewClick', () => {
+  it('is exported', () => {
+    expect(typeof previewClick).toBe('function')
   })
 })
 

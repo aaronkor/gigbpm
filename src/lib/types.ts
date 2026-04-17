@@ -15,8 +15,11 @@ export interface MidiCCBinding {
   cc: number
 }
 
+export type ClickSound = 'wood' | 'beep' | 'tick'
+
 export interface AppSettings {
   announceSongName: boolean
+  clickSound: ClickSound
   midi: {
     enabled: boolean
     advance: MidiCCBinding | null
@@ -29,6 +32,7 @@ export const BPM_MAX = 300
 
 export const DEFAULT_SETTINGS: AppSettings = {
   announceSongName: false,
+  clickSound: 'wood',
   midi: {
     enabled: false,
     advance: null,

@@ -2,16 +2,35 @@
   import { onDestroy } from 'svelte'
 
   import { createMidiController, isMidiAvailable } from '../lib/midi'
+  import { previewClick } from '../lib/metronome'
   import { isTTSAvailable } from '../lib/tts'
-  import type { MidiCCBinding } from '../lib/types'
+  import type { ClickSound, MidiCCBinding } from '../lib/types'
   import { settingsStore } from '../stores/settings'
 
-  let { onBack }: { onBack: () => void } = $props()
+  interface BeforeInstallPromptEvent extends Event {
+    prompt(): Promise<void>
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+  }
+
+  let { onBack, installPromptEvent = null }: {
+    onBack: () => void
+    installPromptEvent?: BeforeInstallPromptEvent | null
+  } = $props()
 
   const ttsAvailable = isTTSAvailable()
   const midiAvailable = isMidiAvailable()
+  const sounds: Array<{ key: ClickSound; label: string }> = [
+    { key: 'wood', label: 'Wood' },
+    { key: 'beep', label: 'Beep' },
+    { key: 'tick', label: 'Tick' },
+  ]
+  const isIos =
+    /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
   let learningTarget = $state<'advance' | 'pauseStop' | null>(null)
+  let isInstalled = $state(window.matchMedia('(display-mode: standalone)').matches)
+  let showIosSheet = $state(false)
   const midiCtrl = createMidiController(() => {}, () => {})
 
   function formatBinding(binding: MidiCCBinding | null): string {
@@ -51,6 +70,22 @@
     settingsStore.setMidiPauseStopBinding(null)
   }
 
+  function handleInstallClick(): void {
+    if (isIos) {
+      showIosSheet = true
+      return
+    }
+
+    if (!installPromptEvent) {
+      return
+    }
+
+    void installPromptEvent.prompt()
+    void installPromptEvent.userChoice.then(() => {
+      isInstalled = window.matchMedia('(display-mode: standalone)').matches
+    })
+  }
+
   $effect(() => {
     if (!$settingsStore.midi.enabled && learningTarget) {
       cancelLearn()
@@ -70,6 +105,54 @@
   </header>
 
   <div class="content">
+    {#if isIos || installPromptEvent !== null || isInstalled}
+      <section>
+        <h2>App</h2>
+        <div class="row">
+          <div class="row-text">
+            <div class="row-title">Install App</div>
+            <div class="row-desc">Add GigBPM to your home screen</div>
+          </div>
+          {#if isInstalled}
+            <span class="installed-label">Installed</span>
+          {:else}
+            <button
+              class="btn-install"
+              disabled={!installPromptEvent && !isIos}
+              onclick={handleInstallClick}
+            >
+              Install
+            </button>
+          {/if}
+        </div>
+      </section>
+    {/if}
+
+    <section>
+      <h2>Audio</h2>
+      <div class="row sound-row">
+        <div class="row-text">
+          <div class="row-title">Click Sound</div>
+        </div>
+        <div class="sound-controls">
+          <div class="sound-seg">
+            {#each sounds as sound}
+              <button
+                class="seg-btn"
+                class:active={$settingsStore.clickSound === sound.key}
+                onclick={() => settingsStore.setClickSound(sound.key)}
+              >
+                {sound.label}
+              </button>
+            {/each}
+          </div>
+          <button class="btn-preview" onclick={() => previewClick($settingsStore.clickSound)}>
+            Preview
+          </button>
+        </div>
+      </div>
+    </section>
+
     {#if ttsAvailable}
       <section>
         <h2>General</h2>
@@ -159,6 +242,19 @@
   </div>
 </div>
 
+{#if showIosSheet}
+  <button
+    class="ios-sheet-backdrop"
+    type="button"
+    aria-label="Close install instructions"
+    onclick={() => (showIosSheet = false)}
+  ></button>
+  <div class="ios-sheet">
+    <p>Tap the <strong>Share</strong> icon in Safari, then choose <strong>Add to Home Screen</strong>.</p>
+    <button class="btn-dismiss" onclick={() => (showIosSheet = false)}>Got it</button>
+  </div>
+{/if}
+
 <style>
   .screen {
     display: flex;
@@ -224,6 +320,83 @@
     font-size: 11px;
     color: var(--text-muted);
     margin-top: 2px;
+  }
+
+  .sound-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .sound-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .sound-seg {
+    display: flex;
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  .seg-btn {
+    flex: 1;
+    padding: 8px 0;
+    background: none;
+    border: none;
+    border-right: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .seg-btn:last-child {
+    border-right: none;
+  }
+
+  .seg-btn.active {
+    background: var(--indigo);
+    color: #fff;
+  }
+
+  .btn-preview {
+    padding: 8px 14px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--indigo);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .installed-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .btn-install {
+    padding: 7px 14px;
+    background: var(--indigo);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .btn-install:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
 
   .toggle {
@@ -333,5 +506,45 @@
     color: var(--indigo);
     text-align: center;
     padding: 6px 0;
+  }
+
+  .ios-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    padding: 0;
+    z-index: 10;
+  }
+
+  .ios-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    z-index: 11;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .ios-sheet p {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+  }
+
+  .btn-dismiss {
+    padding: 12px;
+    background: var(--indigo);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
   }
 </style>

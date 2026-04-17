@@ -1,11 +1,12 @@
 import { get, writable } from 'svelte/store'
 
 import { loadSettings, saveSettings } from '../lib/storage'
-import type { AppSettings, MidiCCBinding } from '../lib/types'
+import type { AppSettings, ClickSound, MidiCCBinding } from '../lib/types'
 
 interface SettingsState {
   all: AppSettings
   announceSongName: boolean
+  clickSound: ClickSound
   midi: AppSettings['midi']
 }
 
@@ -13,6 +14,7 @@ function createState(all: AppSettings): SettingsState {
   return {
     all,
     announceSongName: all.announceSongName,
+    clickSound: all.clickSound,
     midi: all.midi,
   }
 }
@@ -43,12 +45,20 @@ function createSettingsStore() {
       return get(store).announceSongName
     },
 
+    get clickSound() {
+      return get(store).clickSound
+    },
+
     get midi() {
       return get(store).midi
     },
 
     setAnnounceSongName(value: boolean): void {
       updateSettings((settings) => ({ ...settings, announceSongName: value }))
+    },
+
+    setClickSound(value: ClickSound): void {
+      updateSettings((settings) => ({ ...settings, clickSound: value }))
     },
 
     setMidiEnabled(value: boolean): void {

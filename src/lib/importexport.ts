@@ -90,3 +90,26 @@ export function exportSetlist(setlist: Setlist): void {
   document.body.removeChild(anchor)
   URL.revokeObjectURL(url)
 }
+
+export async function shareSetlist(setlist: Setlist): Promise<void> {
+  const payload = buildExportPayload(setlist)
+  const json = JSON.stringify(payload, null, 2)
+  const blob = new Blob([json], { type: 'application/json' })
+  const filename = `setlist-${setlist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`
+  const file = new File([blob], filename, { type: 'application/json' })
+
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: setlist.name })
+      return
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
+
+      throw error
+    }
+  }
+
+  exportSetlist(setlist)
+}

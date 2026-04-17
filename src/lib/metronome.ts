@@ -1,7 +1,7 @@
+import type { ClickSound } from './types'
+
 const LOOKAHEAD_SECONDS = 0.1
 const SCHEDULER_INTERVAL_MS = 25
-const CLICK_DURATION_SECONDS = 0.04
-const CLICK_DECAY = 150
 
 export interface Metronome {
   start(bpm: number): void
@@ -9,37 +9,89 @@ export interface Metronome {
   pause(): void
   resume(): void
   setBpm(bpm: number): void
+  setClickSound(sound: ClickSound): void
   onBeat(callback: () => void): void
   readonly isRunning: boolean
   readonly isPaused: boolean
 }
 
-export function createMetronome(ctx: AudioContext): Metronome {
+function buildClickBuffer(sound: ClickSound, ctx: AudioContext): AudioBuffer {
+  if (sound === 'beep') {
+    const duration = 0.06
+    const length = Math.floor(ctx.sampleRate * duration)
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
+    const data = buffer.getChannelData(0)
+
+    for (let index = 0; index < length; index += 1) {
+      const time = index / ctx.sampleRate
+      data[index] = Math.sin(2 * Math.PI * 880 * time) * (1 - time / duration)
+    }
+
+    return buffer
+  }
+
+  if (sound === 'tick') {
+    const duration = 0.025
+    const length = Math.floor(ctx.sampleRate * duration)
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
+    const data = buffer.getChannelData(0)
+
+    for (let index = 0; index < length; index += 1) {
+      const time = index / ctx.sampleRate
+      data[index] = (Math.random() * 2 - 1) * Math.exp(-time * 400)
+    }
+
+    return buffer
+  }
+
+  const duration = 0.04
+  const length = Math.floor(ctx.sampleRate * duration)
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
+  const data = buffer.getChannelData(0)
+
+  for (let index = 0; index < length; index += 1) {
+    const time = index / ctx.sampleRate
+    data[index] = (Math.random() * 2 - 1) * Math.exp(-time * 150)
+  }
+
+  return buffer
+}
+
+export function previewClick(sound: ClickSound): void {
+  const AudioContextConstructor =
+    globalThis.AudioContext ??
+    (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext
+
+  if (!AudioContextConstructor) {
+    return
+  }
+
+  const ctx = new AudioContextConstructor()
+  const source = ctx.createBufferSource()
+  source.buffer = buildClickBuffer(sound, ctx)
+  source.connect(ctx.destination)
+  source.start()
+  source.onended = () => void ctx.close().catch(() => undefined)
+}
+
+export function createMetronome(
+  ctx: AudioContext,
+  initialSound: ClickSound = 'wood',
+): Metronome {
   let bpm = 120
   let nextBeatTime = 0
   let schedulerTimer: ReturnType<typeof setTimeout> | null = null
   let beatCallback: (() => void) | null = null
   let running = false
   let paused = false
+  let currentSound = initialSound
   let clickBuffer: AudioBuffer | null = null
   const pendingBeatCallbacks: number[] = []
 
-  function buildClickBuffer(): AudioBuffer {
-    const length = Math.floor(ctx.sampleRate * CLICK_DURATION_SECONDS)
-    const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
-    const data = buffer.getChannelData(0)
-
-    for (let index = 0; index < length; index += 1) {
-      const time = index / ctx.sampleRate
-      data[index] = (Math.random() * 2 - 1) * Math.exp(-time * CLICK_DECAY)
-    }
-
-    return buffer
-  }
-
   function getClickBuffer(): AudioBuffer {
     if (!clickBuffer) {
-      clickBuffer = buildClickBuffer()
+      clickBuffer = buildClickBuffer(currentSound, ctx)
     }
 
     return clickBuffer
@@ -145,6 +197,15 @@ export function createMetronome(ctx: AudioContext): Metronome {
 
     setBpm(newBpm: number): void {
       bpm = newBpm
+    },
+
+    setClickSound(sound: ClickSound): void {
+      if (currentSound === sound) {
+        return
+      }
+
+      currentSound = sound
+      clickBuffer = null
     },
 
     onBeat(callback: () => void): void {

@@ -72,6 +72,10 @@
   function handleToggleTts(): void {
     settingsStore.setAnnounceSongName(!settingsStore.announceSongName)
   }
+
+  $effect(() => {
+    performanceStore.metronome.setClickSound($settingsStore.clickSound)
+  })
 </script>
 
 <div class="screen">

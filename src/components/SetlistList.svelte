@@ -4,7 +4,7 @@
   import AppLogo from './AppLogo.svelte'
   import Toast from './Toast.svelte'
 
-  import { exportSetlist, validateImport } from '../lib/importexport'
+  import { exportSetlist, shareSetlist, validateImport } from '../lib/importexport'
   import type { Setlist } from '../lib/types'
   import { setlistsStore } from '../stores/setlists'
 
@@ -79,6 +79,14 @@
     exportSetlist(setlist)
   }
 
+  async function handleShare(setlist: Setlist): Promise<void> {
+    try {
+      await shareSetlist(setlist)
+    } catch {
+      toast("Couldn't share setlist")
+    }
+  }
+
   onDestroy(() => {
     if (toastTimer) clearTimeout(toastTimer)
   })
@@ -133,6 +141,7 @@
           {#if expandedId === setlist.id}
             <div class="row-actions">
               <button onclick={() => startRename(setlist)}>Rename</button>
+              <button onclick={() => handleShare(setlist)}>Share</button>
               <button onclick={() => handleExport(setlist)}>Export</button>
               <button class="danger" onclick={() => setlistsStore.remove(setlist.id)}>
                 Delete

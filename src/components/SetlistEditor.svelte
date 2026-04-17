@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte'
+  import { onDestroy, tick } from 'svelte'
   import { dndzone, type DndEvent } from 'svelte-dnd-action'
 
   import SongEditor from './SongEditor.svelte'
@@ -25,6 +25,9 @@
   let isDragging = $state(false)
   let editingSong = $state<Song | null>(null)
   let addingNew = $state(false)
+  let editingName = $state(false)
+  let nameValue = $state('')
+  let nameInput = $state<HTMLInputElement | null>(null)
   let toastMessage = $state('')
   let showToast = $state(false)
   let undoSong = $state<{ song: Song; index: number } | null>(null)
@@ -92,6 +95,26 @@
     addingNew = false
   }
 
+  function startEditName(): void {
+    nameValue = current.name
+    editingName = true
+  }
+
+  function commitName(): void {
+    const trimmed = nameValue.trim()
+
+    if (trimmed) {
+      setlistsStore.rename(current.id, trimmed)
+    }
+
+    editingName = false
+  }
+
+  function cancelEditName(): void {
+    nameValue = current.name
+    editingName = false
+  }
+
   onDestroy(() => {
     if (toastTimer) clearTimeout(toastTimer)
   })
@@ -101,12 +124,38 @@
       draftSongs = current.songs
     }
   })
+
+  $effect(() => {
+    if (!editingName) {
+      return
+    }
+
+    void tick().then(() => nameInput?.focus())
+  })
 </script>
 
 <div class="screen">
   <header>
     <button class="nav-btn" onclick={onBack}>← Back</button>
-    <h1>{current.name}</h1>
+    {#if editingName}
+      <input
+        class="name-input"
+        bind:this={nameInput}
+        bind:value={nameValue}
+        onblur={commitName}
+        onkeydown={(event) => {
+          if (event.key === 'Enter') {
+            commitName()
+          }
+
+          if (event.key === 'Escape') {
+            cancelEditName()
+          }
+        }}
+      />
+    {:else}
+      <button class="name-btn" onclick={startEditName}>{current.name}</button>
+    {/if}
     <button class="play-btn" onclick={handlePlay} disabled={current.songs.length === 0}>▶ Play</button>
   </header>
 
@@ -173,13 +222,6 @@
     border-bottom: 1px solid var(--border);
   }
 
-  h1 {
-    flex: 1;
-    font-size: 16px;
-    font-weight: 700;
-    text-align: center;
-  }
-
   .nav-btn {
     background: none;
     border: none;
@@ -200,6 +242,35 @@
   .play-btn:disabled {
     color: var(--text-muted);
     cursor: default;
+  }
+
+  .name-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+    cursor: text;
+    padding: 2px 4px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .name-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--indigo);
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+    padding: 2px 4px;
+    min-width: 0;
   }
 
   .list {

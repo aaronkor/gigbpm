@@ -25,6 +25,7 @@ function createNoopMetronome(): Metronome {
     pause(): void {},
     resume(): void {},
     setBpm(): void {},
+    setClickSound(): void {},
     onBeat(callback: () => void): void {
       beatCallback = callback
     },
@@ -51,7 +52,9 @@ function createAudioContextInstance(): AudioContext | null {
 }
 
 const audioContext = createAudioContextInstance()
-const metronome: Metronome = audioContext ? createMetronome(audioContext) : createNoopMetronome()
+const metronome: Metronome = audioContext
+  ? createMetronome(audioContext, settingsStore.all.clickSound)
+  : createNoopMetronome()
 
 function createState(
   setlist: Setlist | null,
