@@ -1,6 +1,11 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
 
+  import AppLogo from './AppLogo.svelte'
+  import iconNext from '../assets/icon-next.svg?raw'
+  import iconPause from '../assets/icon-pause.svg?raw'
+  import iconPlay from '../assets/icon-play.svg?raw'
+  import iconPrev from '../assets/icon-prev.svg?raw'
   import { isTTSAvailable } from '../lib/tts'
   import { performanceStore } from '../stores/performance'
   import { settingsStore } from '../stores/settings'
@@ -71,16 +76,22 @@
 
 <div class="screen">
   <div class="top-row">
-    {#if isTTSAvailable()}
-      <button
-        class="tts-btn"
-        class:is-on={$settingsStore.announceSongName}
-        onclick={handleToggleTts}
-        aria-label={$settingsStore.announceSongName ? 'Disable TTS' : 'Enable TTS'}
-      >
-        🔊
-      </button>
-    {/if}
+    <div class="top-action">
+      {#if isTTSAvailable()}
+        <button
+          class="tts-btn"
+          class:is-on={$settingsStore.announceSongName}
+          onclick={handleToggleTts}
+          aria-label={$settingsStore.announceSongName ? 'Disable TTS' : 'Enable TTS'}
+        >
+          🔊
+        </button>
+      {/if}
+    </div>
+
+    <div class="top-brand">
+      <AppLogo size="34px" />
+    </div>
 
     <button class="exit-btn" onclick={handleExit} aria-label="Exit performance">✕</button>
   </div>
@@ -95,7 +106,7 @@
 
   <div class="secondary-controls">
     <button class="prev-btn" onclick={() => performanceStore.prev()} aria-label="Previous song">
-      <span class="btn-icon">◀◀</span>
+      <span class="btn-icon" aria-hidden="true">{@html iconPrev}</span>
       <span class="btn-label">PREV</span>
     </button>
 
@@ -105,7 +116,9 @@
       onclick={handlePauseResume}
       aria-label={$performanceStore.running ? 'Pause' : 'Resume'}
     >
-      <span class="btn-icon">{$performanceStore.running ? '⏸' : '▶'}</span>
+      <span class="btn-icon btn-icon-primary" aria-hidden="true">
+        {@html $performanceStore.running ? iconPause : iconPlay}
+      </span>
       <span class="btn-label">{$performanceStore.running ? 'PAUSE' : 'RESUME'}</span>
     </button>
   </div>
@@ -120,7 +133,7 @@
   </div>
 
   <button class="next-btn" onclick={() => performanceStore.next()} aria-label="Next song">
-    <span class="btn-icon">▶▶</span>
+    <span class="btn-icon" aria-hidden="true">{@html iconNext}</span>
     <span class="btn-label">NEXT</span>
   </button>
 </div>
@@ -139,13 +152,33 @@
 
   .top-row {
     width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: 36px 1fr 36px;
+    align-items: center;
+    gap: 12px;
   }
 
-  .tts-btn,
+  .top-action,
+  .top-brand {
+    display: flex;
+    align-items: center;
+  }
+
+  .top-brand {
+    justify-content: center;
+    color: var(--text);
+  }
+
   .exit-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  .tts-btn {
     background: none;
     border: none;
     color: var(--text-muted);
@@ -287,7 +320,18 @@
   }
 
   .btn-icon {
-    font-size: 18px;
+    display: inline-flex;
+    line-height: 0;
+  }
+
+  .btn-icon :global(svg) {
+    width: 24px;
+    height: 24px;
+  }
+
+  .btn-icon-primary :global(svg) {
+    width: 36px;
+    height: 36px;
   }
 
   .btn-label {

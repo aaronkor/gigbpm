@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, tick } from 'svelte'
 
+  import AppLogo from './AppLogo.svelte'
   import Toast from './Toast.svelte'
 
   import { exportSetlist, validateImport } from '../lib/importexport'
@@ -93,7 +94,9 @@
 
 <div class="screen">
   <header>
-    <h1>GigBPM</h1>
+    <div class="brand">
+      <AppLogo size="32px" />
+    </div>
     <button class="icon-btn" onclick={onOpenSettings} aria-label="Settings">⚙</button>
   </header>
 
@@ -172,9 +175,10 @@
     border-bottom: 1px solid var(--border);
   }
 
-  h1 {
-    font-size: 18px;
-    font-weight: 700;
+  .brand {
+    display: flex;
+    align-items: center;
+    color: var(--text);
   }
 
   .icon-btn {
