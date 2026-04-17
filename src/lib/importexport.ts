@@ -97,17 +97,28 @@ export async function shareSetlist(setlist: Setlist): Promise<void> {
   const blob = new Blob([json], { type: 'application/json' })
   const filename = `setlist-${setlist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`
   const file = new File([blob], filename, { type: 'application/json' })
+  const fileShareData = { files: [file] }
+  const titledShareData = { ...fileShareData, title: setlist.name }
 
-  if (navigator.canShare?.({ files: [file] })) {
+  if (navigator.canShare?.(titledShareData)) {
     try {
-      await navigator.share({ files: [file], title: setlist.name })
+      await navigator.share(titledShareData)
       return
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         return
       }
+    }
+  }
 
-      throw error
+  if (navigator.canShare?.(fileShareData)) {
+    try {
+      await navigator.share(fileShareData)
+      return
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
     }
   }
 
