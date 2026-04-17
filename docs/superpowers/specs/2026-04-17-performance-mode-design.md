@@ -18,7 +18,7 @@ The app cannot programmatically suppress OS-level sounds (phone ring, notificati
 
 ## Data Model
 
-`AppSettings` gains one new boolean field:
+`AppSettings` gains one new boolean field. Both the interface and `DEFAULT_SETTINGS` in `src/lib/types.ts` must be updated:
 
 ```ts
 interface AppSettings {
@@ -31,11 +31,16 @@ interface AppSettings {
     pauseStop: MidiCCBinding | null
   }
 }
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  announceSongName: false,
+  clickSound: 'wood',
+  performanceMode: false,    // NEW
+  midi: { enabled: false, advance: null, pauseStop: null },
+}
 ```
 
-`DEFAULT_SETTINGS` is updated to include `performanceMode: false`.
-
-`SettingsState` gains a matching field:
+`SettingsState` is a private interface inside `src/stores/settings.ts` (not exported from `types.ts`). It gains a matching field:
 
 ```ts
 interface SettingsState {
@@ -51,19 +56,24 @@ interface SettingsState {
 - `get performanceMode()` accessor
 - `setPerformanceMode(value: boolean)` action
 
-Both follow the existing pattern used by `announceSongName`.
+Both follow the existing pattern used by `announceSongName`. The private `createState()` function inside `settings.ts` must also be updated to map `all.performanceMode` into the returned state object — omitting this will cause a TypeScript error when `SettingsState` is updated.
+
+### Migration
+
+`loadSettings()` in `src/lib/storage.ts` already merges stored data onto `DEFAULT_SETTINGS` via object spread (`{ ...defaults, ...stored }`). Existing localStorage payloads that lack `performanceMode` will automatically receive the default value of `false` — no migration code is needed.
 
 ---
 
 ## Settings UI
 
-A new **Performance** section is added to `Settings.svelte`, positioned after the Audio section.
+A new **Performance** section is added to `Settings.svelte`, positioned after the Audio section. This section renders unconditionally — it is not gated behind any feature-detection check (unlike the MIDI section, which is hidden when Web MIDI is unavailable).
 
 It contains a single toggle row:
 
 - **Label:** Performance Mode
 - **Subtitle:** Keeps screen on and reminds you to enable Do Not Disturb
 - **Control:** toggle (boolean, same pattern as Announce Song Name)
+- **Accessibility:** `aria-label="Toggle performance mode"` on the wrapping `<label>`, matching the pattern of `aria-label="Toggle announce song name"` and `aria-label="Toggle MIDI"` used in the same file
 
 ---
 
@@ -83,15 +93,54 @@ When `performanceMode` is enabled and the user is on the Performance screen, the
 
 ### Implementation
 
-All wake lock logic lives in `PerformanceScreen.svelte` using a Svelte 5 `$effect`:
+`PerformanceScreen.svelte` already uses `onMount`, `onDestroy`, and a `$effect` for click sound. The wake lock logic is an **additive `$effect`** — the existing `onMount` must not be modified or merged with this new effect.
 
-- On mount: if `performanceMode` is on, request wake lock
-- `visibilitychange` listener: re-request when `document.visibilityState === 'visible'` and mode is still on
-- Cleanup function releases the lock and removes the listener
+The `WakeLockSentinel` reference is stored in a component-level `let` variable outside the `$effect`, so the cleanup function and the `visibilitychange` handler both close over the same instance. TypeScript's `lib.dom.d.ts` does not include `WakeLockSentinel` in all tsconfig targets — declare it as `any` or cast as needed, or annotate with `// @ts-ignore`:
+
+```ts
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let wakeLock: any = null
+```
+
+`settingsStore` is a Svelte writable store. Reading `$settingsStore.performanceMode` at the top level of `$effect` subscribes to the whole store — consistent with how the existing click-sound effect reads `$settingsStore.clickSound`. Any settings change will re-run the effect, but this is acceptable: the cleanup releases the lock and the re-run immediately re-acquires it if the mode is still on. This matches the existing codebase pattern.
+
+`$settingsStore.performanceMode` inside the `onVisibility` nested function is a live getter call (reads the current store value at call time), not a reactive subscription. This is correct: we want the current value at the moment visibility changes, not at effect-creation time.
+
+```ts
+$effect(() => {
+  const enabled = $settingsStore.performanceMode
+  if (!enabled) return
+
+  async function requestLock() {
+    try { wakeLock = await navigator.wakeLock?.request('screen') ?? null }
+    catch { /* silently ignore */ }
+  }
+  requestLock()
+
+  function onVisibility() {
+    if (document.visibilityState === 'visible' && $settingsStore.performanceMode) {
+      requestLock()
+    }
+  }
+  document.addEventListener('visibilitychange', onVisibility)
+
+  return () => {
+    document.removeEventListener('visibilitychange', onVisibility)
+    wakeLock?.release().catch(() => {})
+    wakeLock = null
+  }
+})
+```
+
+Key points:
+- `onVisibility` reads `$settingsStore.performanceMode` as a live getter call — if mode was toggled off while the page was hidden, the re-request is skipped
+- Cleanup removes the listener before releasing the lock to prevent a race
+- All `wakeLock.request()` calls are in try/catch; all `.release()` calls use `.catch(() => {})`
+- If `navigator.wakeLock` is `undefined`, the optional chain (`?.request`) returns `undefined` silently
 
 ### Browser Support
 
-`navigator.wakeLock` is supported on Chrome/Android and Safari 16.4+. If the API is unavailable, the request is silently skipped — no error is shown to the user.
+`navigator.wakeLock` is supported on Chrome/Android and Safari 16.4+. If `navigator.wakeLock` is `undefined`, the request is skipped entirely.
 
 ---
 
@@ -103,17 +152,19 @@ When `performanceMode` is enabled, a dismissible banner is shown at the top of t
 
 > Enable Do Not Disturb on your device for uninterrupted performance  &nbsp; ✕
 
+The ✕ dismiss button must have `aria-label="Dismiss Do Not Disturb reminder"`, consistent with other icon-only buttons in the app (e.g. `aria-label="Exit performance"` on the exit button).
+
 ### Behaviour
 
 - **Dismissed state** is local component state (`let dismissed = $state(false)`), not persisted to localStorage
 - Dismissing hides the banner for the current visit only; it reappears the next time the user enters the Performance screen
 - If `performanceMode` is off, the banner is never rendered
 
-### Visual Style
+### Visual Style & DOM Placement
 
-- Positioned above the BPM ring
-- Muted styling consistent with non-critical UI (subdued text, no bright accent colours)
-- Does not obstruct the ring, BPM display, or transport controls
+The banner is inserted between `top-row` and `song-info` in `PerformanceScreen.svelte`. The `.screen` container is `flex-direction: column` with `gap: var(--screen-section-gap)`. The banner occupies a full gap slot when visible, shifting the ring downward. To avoid layout shift, it must use `display: none` (not `visibility: hidden`) when dismissed — this collapses the element and restores the original layout.
+
+The banner reuses the `.row` markup pattern from `Settings.svelte`: a `display: flex; align-items: center; justify-content: space-between` container with `var(--surface)` background, `var(--text-muted)` text, `var(--border)` border, and `var(--radius-sm)` border radius. The dismiss ✕ button is a trailing flex item, right-aligned.
 
 ---
 
