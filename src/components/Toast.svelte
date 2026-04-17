@@ -25,7 +25,9 @@
     border: 1px solid var(--border);
     font-size: 13px;
     z-index: 100;
-    white-space: nowrap;
+    max-width: calc(100vw - 24px);
+    white-space: normal;
+    text-align: center;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     cursor: default;
   }

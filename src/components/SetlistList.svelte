@@ -237,6 +237,7 @@
     color: var(--text);
     cursor: pointer;
     text-align: left;
+    min-width: 0;
   }
 
   .arrow-btn {
@@ -256,6 +257,10 @@
   .row-name {
     font-size: 14px;
     font-weight: 600;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .row-meta {
@@ -265,12 +270,13 @@
   }
 
   .row-actions {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     border-top: 1px solid var(--border);
   }
 
   .row-actions button {
-    flex: 1;
+    min-width: 0;
     padding: 9px 0;
     background: none;
     border: none;
@@ -301,6 +307,7 @@
   .bottom-actions {
     padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     border-top: 1px solid var(--border);
   }
@@ -318,6 +325,7 @@
   }
 
   .btn-secondary {
+    flex: 1 1 120px;
     padding: 13px 18px;
     background: var(--surface);
     color: var(--indigo);
@@ -326,5 +334,17 @@
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
+    text-align: center;
+  }
+
+  @media (max-width: 360px) {
+    .row-main {
+      gap: 10px;
+      padding: 12px 14px;
+    }
+
+    .row-actions {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 </style>

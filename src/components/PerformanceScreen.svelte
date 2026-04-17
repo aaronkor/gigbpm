@@ -150,15 +150,20 @@
     flex: 1;
     flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    padding: 24px 20px calc(36px + env(safe-area-inset-bottom, 0px));
+    justify-content: flex-start;
+    min-height: 0;
+    gap: var(--screen-section-gap);
+    padding:
+      var(--screen-padding-y)
+      var(--screen-padding-x)
+      calc(var(--screen-padding-y) + 12px + env(safe-area-inset-bottom, 0px));
   }
 
   .top-row {
     width: 100%;
     display: grid;
-    grid-template-columns: 36px 1fr 36px;
-    align-items: center;
+    grid-template-columns: minmax(32px, auto) 1fr minmax(32px, auto);
+    align-items: start;
     gap: 12px;
   }
 
@@ -177,7 +182,7 @@
     background: none;
     border: none;
     color: var(--text-muted);
-    font-size: 20px;
+    font-size: clamp(18px, 5vw, 20px);
     cursor: pointer;
     padding: 4px;
   }
@@ -186,7 +191,7 @@
     background: none;
     border: none;
     color: var(--text-muted);
-    font-size: 20px;
+    font-size: clamp(18px, 5vw, 20px);
     cursor: pointer;
     padding: 4px;
   }
@@ -201,11 +206,13 @@
 
   .song-info {
     text-align: center;
+    width: 100%;
+    max-width: 28rem;
   }
 
   .position {
-    font-size: 11px;
-    letter-spacing: 2px;
+    font-size: clamp(10px, 2.8vw, 11px);
+    letter-spacing: clamp(1.2px, 0.5vw, 2px);
     text-transform: uppercase;
     color: var(--text-muted);
   }
@@ -215,14 +222,15 @@
   }
 
   .song-name {
-    font-size: 22px;
+    font-size: clamp(18px, 6vw, 22px);
     font-weight: 700;
     margin-top: 6px;
+    overflow-wrap: anywhere;
   }
 
   .bpm-ring {
-    width: min(72vw, 252px);
-    height: min(72vw, 252px);
+    width: min(68vw, 44dvh, 252px);
+    height: min(68vw, 44dvh, 252px);
     max-width: 252px;
     max-height: 252px;
     border-radius: 50%;
@@ -235,6 +243,7 @@
     transition:
       border-color 0.05s ease,
       box-shadow 0.05s ease;
+    margin-block: auto;
   }
 
   .bpm-ring.on-beat {
@@ -253,7 +262,7 @@
   }
 
   .bpm-number {
-    font-size: clamp(56px, 18vw, 88px);
+    font-size: clamp(48px, 16vw, 88px);
     font-weight: 900;
     font-family: monospace;
     line-height: 1;
@@ -261,8 +270,8 @@
   }
 
   .bpm-label {
-    font-size: 12px;
-    letter-spacing: 3px;
+    font-size: clamp(10px, 3vw, 12px);
+    letter-spacing: clamp(2px, 0.9vw, 3px);
     color: var(--text-muted);
     margin-top: 4px;
   }
@@ -270,12 +279,12 @@
   .secondary-controls {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: var(--control-gap);
   }
 
   .prev-btn {
-    width: 48px;
-    height: 48px;
+    width: var(--control-size-sm);
+    height: var(--control-size-sm);
     border-radius: 50%;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -289,8 +298,8 @@
   }
 
   .pause-btn {
-    width: 64px;
-    height: 64px;
+    width: var(--control-size-md);
+    height: var(--control-size-md);
     border-radius: 50%;
     background: var(--surface);
     border: 2px solid var(--border);
@@ -308,8 +317,8 @@
   }
 
   .next-btn {
-    width: 120px;
-    height: 120px;
+    width: var(--control-size-lg);
+    height: var(--control-size-lg);
     border-radius: 50%;
     background: var(--accent);
     border: none;
@@ -329,18 +338,37 @@
   }
 
   .btn-icon :global(svg) {
-    width: 24px;
-    height: 24px;
+    width: clamp(20px, 6vw, 24px);
+    height: clamp(20px, 6vw, 24px);
   }
 
   .btn-icon-primary :global(svg) {
-    width: 36px;
-    height: 36px;
+    width: clamp(28px, 9vw, 36px);
+    height: clamp(28px, 9vw, 36px);
   }
 
   .btn-label {
-    font-size: 9px;
+    font-size: clamp(8px, 2.5vw, 9px);
     font-weight: 700;
     letter-spacing: 1px;
+  }
+
+  @media (max-width: 360px), (max-height: 640px) {
+    .screen {
+      gap: clamp(8px, 2dvh, 12px);
+    }
+
+    .top-row {
+      gap: 8px;
+    }
+
+    .song-name {
+      margin-top: 4px;
+    }
+
+    .bpm-ring {
+      width: min(62vw, 36dvh, 216px);
+      height: min(62vw, 36dvh, 216px);
+    }
   }
 </style>

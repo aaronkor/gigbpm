@@ -272,8 +272,10 @@
   }
 
   h1 {
+    flex: 1;
     font-size: 16px;
     font-weight: 700;
+    min-width: 0;
   }
 
   .back-btn {
@@ -331,6 +333,7 @@
   .sound-controls {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
     width: 100%;
   }
@@ -473,6 +476,7 @@
 
   .binding-btns {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     flex-shrink: 0;
   }
@@ -546,5 +550,33 @@
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
+  }
+
+  @media (max-width: 360px) {
+    .content {
+      gap: 18px;
+      padding: 14px;
+    }
+
+    .row {
+      padding: 12px 14px;
+    }
+
+    .sound-seg {
+      width: 100%;
+    }
+
+    .btn-preview {
+      width: 100%;
+    }
+
+    .binding-row {
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .binding-btns {
+      width: 100%;
+    }
   }
 </style>

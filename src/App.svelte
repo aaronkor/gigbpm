@@ -140,6 +140,7 @@
     min-height: 100%;
     display: flex;
     flex-direction: column;
+    min-width: 0;
   }
 
   .install-banner {
@@ -149,17 +150,19 @@
     right: 0;
     background: #1a1a2e;
     border-top: 1px solid var(--indigo);
-    padding: 12px 16px;
+    padding: 12px var(--screen-padding-x);
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
     z-index: 20;
   }
 
   .banner-text {
-    flex: 1;
+    flex: 1 1 180px;
     font-size: 13px;
     color: #c7c7ff;
+    min-width: 0;
   }
 
   .banner-add {
@@ -222,5 +225,15 @@
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
+  }
+
+  @media (max-width: 360px) {
+    .install-banner {
+      gap: 8px;
+    }
+
+    .banner-text {
+      flex-basis: 100%;
+    }
   }
 </style>
