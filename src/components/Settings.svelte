@@ -153,6 +153,25 @@
       </div>
     </section>
 
+    <section>
+      <h2>Performance</h2>
+      <div class="row">
+        <div class="row-text">
+          <div class="row-title">Performance Mode</div>
+          <div class="row-desc">Keeps screen on and reminds you to enable Do Not Disturb</div>
+        </div>
+        <label class="toggle" aria-label="Toggle performance mode">
+          <input
+            type="checkbox"
+            checked={$settingsStore.performanceMode}
+            onchange={(event) =>
+              settingsStore.setPerformanceMode((event.target as HTMLInputElement).checked)}
+          />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
     {#if ttsAvailable}
       <section>
         <h2>General</h2>

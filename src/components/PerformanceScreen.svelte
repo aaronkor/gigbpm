@@ -13,7 +13,10 @@
   let { onExit }: { onExit: () => void } = $props()
 
   let beatActive = $state(false)
+  let dismissedDndReminder = $state(false)
   let beatTimer: ReturnType<typeof setTimeout> | null = null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let wakeLock: any = null
 
   type MediaNavigator = Navigator & {
     mediaSession?: {
@@ -21,6 +24,12 @@
         action: 'nexttrack' | 'previoustrack',
         handler: MediaSessionActionHandler | null,
       ) => void
+    }
+  }
+
+  type WakeLockNavigator = Navigator & {
+    wakeLock?: {
+      request: (type: 'screen') => Promise<unknown>
     }
   }
 
@@ -76,6 +85,41 @@
   $effect(() => {
     performanceStore.metronome.setClickSound($settingsStore.clickSound)
   })
+
+  $effect(() => {
+    const enabled = $settingsStore.performanceMode
+
+    if (!enabled) {
+      return
+    }
+
+    async function requestLock(): Promise<void> {
+      const wakeLockNavigator = navigator as WakeLockNavigator
+
+      try {
+        wakeLock = (await wakeLockNavigator.wakeLock?.request('screen')) ?? null
+      } catch {
+        wakeLock = null
+      }
+    }
+
+    void requestLock()
+
+    function onVisibility(): void {
+      if (document.visibilityState === 'visible' && $settingsStore.performanceMode) {
+        void requestLock()
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      const releaseResult = wakeLock?.release?.()
+      void releaseResult?.catch(() => {})
+      wakeLock = null
+    }
+  })
 </script>
 
 <div class="screen">
@@ -99,6 +143,19 @@
 
     <button class="exit-btn" onclick={handleExit} aria-label="Exit performance">✕</button>
   </div>
+
+  {#if $settingsStore.performanceMode && !dismissedDndReminder}
+    <div class="dnd-banner">
+      <span>Enable Do Not Disturb on your device for uninterrupted performance</span>
+      <button
+        class="dnd-dismiss"
+        onclick={() => (dismissedDndReminder = true)}
+        aria-label="Dismiss Do Not Disturb reminder"
+      >
+        ✕
+      </button>
+    </div>
+  {/if}
 
   <div class="song-info">
     <div class="position" class:is-paused={$performanceStore.paused}>
@@ -208,6 +265,38 @@
     text-align: center;
     width: 100%;
     max-width: 28rem;
+  }
+
+  .dnd-banner {
+    width: 100%;
+    max-width: 32rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .dnd-banner span {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .dnd-dismiss {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px;
   }
 
   .position {
@@ -360,6 +449,12 @@
 
     .top-row {
       gap: 8px;
+    }
+
+    .dnd-banner {
+      padding: 10px 12px;
+      gap: 10px;
+      font-size: 12px;
     }
 
     .song-name {

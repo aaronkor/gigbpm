@@ -59,6 +59,11 @@ describe('loadSettings', () => {
     expect(loadSettings().clickSound).toBe('beep')
     expect(loadSettings().midi).toEqual(DEFAULT_SETTINGS.midi)
   })
+
+  it('defaults performanceMode to false when field is missing from stored data', () => {
+    localStorage.setItem('gigbpm_settings', JSON.stringify({ announceSongName: true }))
+    expect(loadSettings().performanceMode).toBe(false)
+  })
 })
 
 describe('saveSettings', () => {
@@ -88,5 +93,27 @@ describe('settingsStore.setClickSound', () => {
     expect(JSON.parse(localStorage.getItem('gigbpm_settings') ?? '{}').clickSound).toBe('beep')
 
     settingsStore.setClickSound('wood')
+  })
+})
+
+describe('settingsStore.setPerformanceMode', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    settingsStore.setPerformanceMode(false)
+  })
+
+  it('defaults performanceMode to false', () => {
+    expect(settingsStore.performanceMode).toBe(false)
+  })
+
+  it('updates performanceMode and persists it', () => {
+    settingsStore.setPerformanceMode(true)
+
+    expect(settingsStore.performanceMode).toBe(true)
+    expect(
+      JSON.parse(localStorage.getItem('gigbpm_settings') ?? '{}').performanceMode,
+    ).toBe(true)
+
+    settingsStore.setPerformanceMode(false)
   })
 })

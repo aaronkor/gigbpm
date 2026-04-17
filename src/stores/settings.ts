@@ -7,6 +7,7 @@ interface SettingsState {
   all: AppSettings
   announceSongName: boolean
   clickSound: ClickSound
+  performanceMode: boolean
   midi: AppSettings['midi']
 }
 
@@ -15,6 +16,7 @@ function createState(all: AppSettings): SettingsState {
     all,
     announceSongName: all.announceSongName,
     clickSound: all.clickSound,
+    performanceMode: all.performanceMode,
     midi: all.midi,
   }
 }
@@ -49,6 +51,10 @@ function createSettingsStore() {
       return get(store).clickSound
     },
 
+    get performanceMode() {
+      return get(store).performanceMode
+    },
+
     get midi() {
       return get(store).midi
     },
@@ -59,6 +65,10 @@ function createSettingsStore() {
 
     setClickSound(value: ClickSound): void {
       updateSettings((settings) => ({ ...settings, clickSound: value }))
+    },
+
+    setPerformanceMode(value: boolean): void {
+      updateSettings((settings) => ({ ...settings, performanceMode: value }))
     },
 
     setMidiEnabled(value: boolean): void {
