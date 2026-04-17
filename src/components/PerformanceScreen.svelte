@@ -3,10 +3,8 @@
 
   import AppLogo from './AppLogo.svelte'
   import iconNext from '../assets/icon-next.svg?raw'
-  import iconPause from '../assets/icon-pause.svg?raw'
-  import iconPlay from '../assets/icon-play.svg?raw'
   import iconPrev from '../assets/icon-prev.svg?raw'
-  import { isTTSAvailable } from '../lib/tts'
+  import { announce, isTTSAvailable } from '../lib/tts'
   import { performanceStore } from '../stores/performance'
   import { settingsStore } from '../stores/settings'
 
@@ -17,6 +15,10 @@
   let beatTimer: ReturnType<typeof setTimeout> | null = null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let wakeLock: any = null
+
+  let nextSong = $derived(
+    $performanceStore.setlist?.songs[$performanceStore.songIndex + 1] ?? null,
+  )
 
   type MediaNavigator = Navigator & {
     mediaSession?: {
@@ -80,6 +82,13 @@
 
   function handleToggleTts(): void {
     settingsStore.setAnnounceSongName(!settingsStore.announceSongName)
+  }
+
+  function handleSongNameTap(): void {
+    if ($settingsStore.announceSongName && isTTSAvailable()) {
+      const song = $performanceStore.currentSong
+      if (song) announce(song.name)
+    }
   }
 
   $effect(() => {
@@ -162,41 +171,46 @@
       {$performanceStore.songIndex + 1} / {$performanceStore.totalSongs}
       {#if $performanceStore.paused}&nbsp;· PAUSED{/if}
     </div>
-    <div class="song-name">{$performanceStore.currentSong?.name ?? ''}</div>
+    <button
+      class="song-name"
+      class:tappable={$settingsStore.announceSongName && isTTSAvailable()}
+      onclick={handleSongNameTap}
+      aria-label={$settingsStore.announceSongName ? 'Tap to announce song name' : undefined}
+    >
+      {$performanceStore.currentSong?.name ?? ''}
+    </button>
+    <div class="next-song-name">
+      {#if nextSong}
+        {nextSong.name}
+      {:else}
+        &lt;END&gt;
+      {/if}
+    </div>
   </div>
 
-  <div class="secondary-controls">
+  <button
+    class="bpm-ring"
+    class:on-beat={beatActive && $performanceStore.running}
+    class:is-paused={$performanceStore.paused}
+    onclick={handlePauseResume}
+    aria-label={$performanceStore.running ? 'Pause' : 'Resume'}
+  >
+    <div class="bpm-number">{$performanceStore.currentSong?.bpm ?? '--'}</div>
+    <div class="bpm-label">BPM</div>
+    <div class="bpm-hint">{$performanceStore.running ? '❚❚' : '▶'}</div>
+  </button>
+
+  <div class="bottom-row">
     <button class="prev-btn" onclick={() => performanceStore.prev()} aria-label="Previous song">
       <span class="btn-icon" aria-hidden="true">{@html iconPrev}</span>
       <span class="btn-label">PREV</span>
     </button>
 
-    <button
-      class="pause-btn"
-      class:is-paused={$performanceStore.paused}
-      onclick={handlePauseResume}
-      aria-label={$performanceStore.running ? 'Pause' : 'Resume'}
-    >
-      <span class="btn-icon btn-icon-primary" aria-hidden="true">
-        {@html $performanceStore.running ? iconPause : iconPlay}
-      </span>
-      <span class="btn-label">{$performanceStore.running ? 'PAUSE' : 'RESUME'}</span>
+    <button class="next-btn" onclick={() => performanceStore.next()} aria-label="Next song">
+      <span class="btn-icon" aria-hidden="true">{@html iconNext}</span>
+      <span class="btn-label">NEXT</span>
     </button>
   </div>
-
-  <div
-    class="bpm-ring"
-    class:on-beat={beatActive && $performanceStore.running}
-    class:is-paused={$performanceStore.paused}
-  >
-    <div class="bpm-number">{$performanceStore.currentSong?.bpm ?? '--'}</div>
-    <div class="bpm-label">BPM</div>
-  </div>
-
-  <button class="next-btn" onclick={() => performanceStore.next()} aria-label="Next song">
-    <span class="btn-icon" aria-hidden="true">{@html iconNext}</span>
-    <span class="btn-label">NEXT</span>
-  </button>
 </div>
 
 <style>
@@ -251,9 +265,6 @@
     font-size: clamp(18px, 5vw, 20px);
     cursor: pointer;
     padding: 4px;
-  }
-
-  .tts-btn {
     opacity: 0.25;
   }
 
@@ -311,17 +322,40 @@
   }
 
   .song-name {
-    font-size: clamp(18px, 6vw, 22px);
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text);
+    text-align: center;
+    font-size: clamp(20px, 6.6vw, 24px);
     font-weight: 700;
     margin-top: 6px;
+    overflow-wrap: anywhere;
+    cursor: default;
+    padding: 0;
+  }
+
+  .song-name.tappable {
+    cursor: pointer;
+  }
+
+  .song-name.tappable:active {
+    opacity: 0.7;
+  }
+
+  .next-song-name {
+    margin-top: 6px;
+    font-size: clamp(13px, 4.2vw, 16px);
+    font-weight: 500;
+    color: var(--text-muted);
+    opacity: 0.55;
     overflow-wrap: anywhere;
   }
 
   .bpm-ring {
-    width: min(68vw, 44dvh, 252px);
-    height: min(68vw, 44dvh, 252px);
-    max-width: 252px;
-    max-height: 252px;
+    width: min(58vw, 37dvh, 214px);
+    height: min(58vw, 37dvh, 214px);
     border-radius: 50%;
     border: 4px solid var(--border);
     background: var(--surface);
@@ -333,6 +367,15 @@
       border-color 0.05s ease,
       box-shadow 0.05s ease;
     margin-block: auto;
+    cursor: pointer;
+    /* reset button styles */
+    padding: 0;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .bpm-ring:active {
+    opacity: 0.85;
   }
 
   .bpm-ring.on-beat {
@@ -365,10 +408,20 @@
     margin-top: 4px;
   }
 
-  .secondary-controls {
+  .bpm-hint {
+    font-size: clamp(8px, 2.2vw, 10px);
+    color: var(--text-muted);
+    opacity: 0.45;
+    margin-top: 5px;
+    letter-spacing: 1px;
+  }
+
+  .bottom-row {
+    width: 100%;
     display: flex;
     align-items: center;
-    gap: var(--control-gap);
+    justify-content: space-between;
+    padding: 0 4px;
   }
 
   .prev-btn {
@@ -386,28 +439,9 @@
     color: var(--text);
   }
 
-  .pause-btn {
-    width: var(--control-size-md);
-    height: var(--control-size-md);
-    border-radius: 50%;
-    background: var(--surface);
-    border: 2px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    cursor: pointer;
-    color: var(--text);
-  }
-
-  .pause-btn.is-paused {
-    border-color: var(--danger);
-  }
-
   .next-btn {
-    width: var(--control-size-lg);
-    height: var(--control-size-lg);
+    width: clamp(97px, 33vw, 132px);
+    height: clamp(97px, 33vw, 132px);
     border-radius: 50%;
     background: var(--accent);
     border: none;
@@ -429,11 +463,6 @@
   .btn-icon :global(svg) {
     width: clamp(20px, 6vw, 24px);
     height: clamp(20px, 6vw, 24px);
-  }
-
-  .btn-icon-primary :global(svg) {
-    width: clamp(28px, 9vw, 36px);
-    height: clamp(28px, 9vw, 36px);
   }
 
   .btn-label {
@@ -462,8 +491,8 @@
     }
 
     .bpm-ring {
-      width: min(62vw, 36dvh, 216px);
-      height: min(62vw, 36dvh, 216px);
+      width: min(52vw, 32dvh, 182px);
+      height: min(52vw, 32dvh, 182px);
     }
   }
 </style>
