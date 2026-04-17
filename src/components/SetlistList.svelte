@@ -286,7 +286,7 @@
   }
 
   .bottom-actions {
-    padding: 16px;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
     display: flex;
     gap: 8px;
     border-top: 1px solid var(--border);

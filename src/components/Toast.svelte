@@ -7,7 +7,7 @@
 </script>
 
 {#if show}
-  <button class="toast" class:clickable={!!onclick} {onclick}>
+  <button class="toast" class:clickable={!!onclick} onclick={() => onclick?.()}>
     {message}
   </button>
 {/if}
