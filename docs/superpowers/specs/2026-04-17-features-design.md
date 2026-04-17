@@ -51,8 +51,12 @@ A new **App** section is added at the top of the Settings screen with a single "
 
 ### iOS Detection
 
+iPadOS 13+ reports a desktop macOS user-agent, so a UA-only check misses modern iPads. Use the combined check:
+
 ```ts
-const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
+const isIos =
+  /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches
 ```
 
@@ -77,9 +81,11 @@ Let users choose a click sound that suits their preference or hearing environmen
 
 | Key | Name | Synthesis |
 |---|---|---|
-| `'wood'` | Wood | Current implementation: white noise burst, exponential decay (~150 rate), 40ms — warm, percussive |
-| `'beep'` | Beep | Sine oscillator at 880 Hz, 60ms, linear ramp to zero — clean, electronic |
-| `'tick'` | Tick | White noise burst through a high-pass filter (~8 kHz cutoff), 25ms — short, sharp, hi-hat-like |
+| `'wood'` | Wood | Current implementation: white noise burst, exponential decay (~150 rate), 40ms — warm, percussive. Pre-rendered into an `AudioBuffer`. |
+| `'beep'` | Beep | Pre-rendered into an `AudioBuffer` via `OfflineAudioContext`: sine `OscillatorNode` at 880 Hz connected through a `GainNode` with a linear ramp to zero over 60ms — clean, electronic. |
+| `'tick'` | Tick | White noise burst pre-rendered into an `AudioBuffer` and filtered through a `BiquadFilterNode` (highpass, ~8 kHz cutoff), 25ms — short, sharp, hi-hat-like. |
+
+All three sounds are pre-rendered into static `AudioBuffer` instances using `OfflineAudioContext` where required (beep). This keeps the `scheduleClick()` path uniform: always a `BufferSource` node, avoiding live node graphs mid-scheduler-loop.
 
 ### Data Model
 
@@ -115,6 +121,8 @@ setClickSound(sound: ClickSound): void
 
 Internally, `clickBuffer` is nulled when the sound changes, forcing a lazy rebuild on the next scheduled click. Each sound variant has its own `buildClickBuffer(sound)` path. The current `buildClickBuffer()` becomes the `'wood'` branch.
 
+**Mid-playback behaviour:** Clicks already queued in the Web Audio graph (within the lookahead window) will play out with the old sound. The new sound takes effect on the next scheduler iteration. This is acceptable — the transition is imperceptible at normal BPMs.
+
 The metronome factory accepts an optional initial sound:
 
 ```ts
@@ -138,6 +146,19 @@ A new action is added:
 setClickSound(value: ClickSound): void
 ```
 
+`SettingsState` gains a `clickSound` field matching the pattern used for `announceSongName`:
+
+```ts
+interface SettingsState {
+  all: AppSettings
+  announceSongName: boolean
+  clickSound: ClickSound   // NEW
+  midi: AppSettings['midi']
+}
+```
+
+A `get clickSound()` accessor is added to the store object, allowing reactive reads via `$settingsStore.clickSound` in Svelte components.
+
 ---
 
 ## Feature 3 — Share a Setlist
@@ -159,7 +180,14 @@ export async function shareSetlist(setlist: Setlist): Promise<void> {
   const file = new File([blob], filename, { type: 'application/json' })
 
   if (navigator.canShare?.({ files: [file] })) {
-    await navigator.share({ files: [file], title: setlist.name })
+    try {
+      await navigator.share({ files: [file], title: setlist.name })
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return  // user cancelled — no feedback needed
+      }
+      throw err  // caller (SetlistList) catches and shows toast
+    }
   } else {
     exportSetlist(setlist)
   }
@@ -167,8 +195,8 @@ export async function shareSetlist(setlist: Setlist): Promise<void> {
 ```
 
 - `navigator.canShare({ files })` guards against browsers that support `navigator.share` but not file sharing
-- If the user cancels the share sheet, `navigator.share` rejects with `AbortError` — this is swallowed silently (no toast needed)
-- Other errors are caught and shown as a toast: "Couldn't share setlist"
+- `AbortError` (user cancelled share sheet) is swallowed silently
+- Any other error is re-thrown; the caller in `SetlistList.svelte` wraps the call in try/catch and shows a toast: "Couldn't share setlist"
 - Falls back to `exportSetlist()` (file download) on unsupported browsers
 
 ### SetlistList UI
@@ -178,6 +206,7 @@ The expanded row actions grow from 3 to 4 items: **Rename | Share | Export | Del
 - **Share** calls `shareSetlist()` — native share sheet
 - **Export** calls `exportSetlist()` — direct file download (unchanged)
 - Both are kept separate: Share is the recommended mobile action; Export remains for desktop/unsupported browsers
+- The 4-button row uses `flex: 1` (same as the current 3-button layout). At 12px font size on a 320px screen each button is ~80px wide — tight but within acceptable tap-target range. No font-size change is required.
 
 ### Edge Cases
 
