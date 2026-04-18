@@ -7,6 +7,7 @@
   import { exportSetlist, shareSetlist, validateImport } from '../lib/importexport'
   import type { Setlist } from '../lib/types'
   import { setlistsStore } from '../stores/setlists'
+  import pkg from '../../package.json'
 
   let { onOpenSetlist, onOpenSettings }: {
     onOpenSetlist: (setlist: Setlist) => void
@@ -20,6 +21,7 @@
   let toastTimer: ReturnType<typeof setTimeout> | null = null
   let renameInput = $state<HTMLInputElement | null>(null)
   let expandedId = $state<string | null>(null)
+  let showAbout = $state(false)
 
   function toast(message: string, duration = 2500): void {
     if (toastTimer) {
@@ -102,11 +104,37 @@
 
 <div class="screen">
   <header>
-    <div class="brand">
+    <button class="brand" onclick={() => showAbout = true} aria-label="About GigBPM">
       <AppLogo size="32px" />
-    </div>
+    </button>
+    <span class="header-title">GigBPM</span>
     <button class="icon-btn" onclick={onOpenSettings} aria-label="Settings">⚙</button>
   </header>
+
+  {#if showAbout}
+    <div
+      class="modal-backdrop"
+      onclick={() => showAbout = false}
+      onkeydown={(e) => e.key === 'Escape' && (showAbout = false)}
+      role="presentation"
+    >
+      <div
+        class="modal"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="About GigBPM"
+        tabindex="-1"
+      >
+        <AppLogo size="52px" />
+        <h2 class="modal-name">GigBPM</h2>
+        <p class="modal-version">Version {pkg.version}</p>
+        <p class="modal-dev">by Aaron Kor</p>
+        <button class="modal-close" onclick={() => showAbout = false}>Close</button>
+      </div>
+    </div>
+  {/if}
 
   <div class="list">
     {#each $setlistsStore.all as setlist (setlist.id)}
@@ -182,12 +210,80 @@
     align-items: center;
     padding: 16px;
     border-bottom: 1px solid var(--border);
+    position: relative;
   }
 
   .brand {
     display: flex;
     align-items: center;
     color: var(--text);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .header-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    pointer-events: none;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 32px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 220px;
+  }
+
+  .modal-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 8px 0 0;
+  }
+
+  .modal-version {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  .modal-dev {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  .modal-close {
+    margin-top: 20px;
+    padding: 9px 28px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
   }
 
   .icon-btn {
