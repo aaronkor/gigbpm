@@ -1,6 +1,6 @@
 # GigBPM — Product Design Specification
 
-**Date:** 2026-04-16 (last updated 2026-04-17)
+**Date:** 2026-04-16 (last updated 2026-04-17, 2026-04-17b)
 **Status:** Approved
 
 ---
@@ -90,6 +90,10 @@ interface AppSettings {
 ### 1. Setlist List
 
 The home screen. Shows all saved setlists and an install banner when appropriate.
+
+**Header:** Three-column layout — logo button (left) · "GigBPM" title centered (right: gear icon)
+- Tapping the logo opens an **About modal** showing: app name, version (from `package.json`), and developer name "Aaron Kor"
+- About modal dismisses on Close button, backdrop tap, or Escape key
 
 - Each setlist row shows name + song count, with a **▼ arrow button** on the right
 - Tapping ▼ expands an action strip (Rename / Share / Export / Delete); arrow flips to ▲ to collapse
@@ -293,4 +297,4 @@ metronome.onBeat(callback: () => void): void      // replaces any previously reg
 - Large touch targets — NEXT button intentionally oversized relative to PREV
 - BPM ring doubles as a large, easy-to-reach pause/resume target
 - No animations beyond the beat halo flash — minimises distraction during performance
-- Logo (syncopated beat-bar SVG mark) displayed in the performance screen header
+- Logo (syncopated beat-bar SVG mark) used as the PWA home screen icon and displayed in the setlist list header and performance screen header
