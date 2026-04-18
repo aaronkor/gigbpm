@@ -27,7 +27,7 @@ Full spec: `docs/superpowers/specs/2026-04-16-gigbpm-design.md`
 
 ## Commands
 
-Update this section with build, lint, test, and dev server commands once the stack is scaffolded.
+Always run 'npm push patch' before pushing to remote.
 
 ## Architecture
 
