@@ -7,6 +7,7 @@ function cloneDefaultSettings(): AppSettings {
   return {
     ...DEFAULT_SETTINGS,
     midi: { ...DEFAULT_SETTINGS.midi },
+    customSound: { ...DEFAULT_SETTINGS.customSound },
   }
 }
 
@@ -41,6 +42,10 @@ export function loadSettings(): AppSettings {
       midi: {
         ...defaults.midi,
         ...stored.midi,
+      },
+      customSound: {
+        ...defaults.customSound,
+        ...stored.customSound,
       },
     }
   } catch {

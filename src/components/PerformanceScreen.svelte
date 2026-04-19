@@ -92,10 +92,6 @@
   }
 
   $effect(() => {
-    performanceStore.metronome.setClickSound($settingsStore.clickSound)
-  })
-
-  $effect(() => {
     const enabled = $settingsStore.performanceMode
 
     if (!enabled) {

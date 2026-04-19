@@ -15,7 +15,16 @@ export interface MidiCCBinding {
   cc: number
 }
 
-export type ClickSound = 'wood' | 'beep' | 'tick'
+export type ClickSoundSource = 'sine' | 'square' | 'noise'
+
+export interface CustomSoundParams {
+  source: ClickSoundSource
+  pitch: number
+  duration: number
+  decay: number
+}
+
+export type ClickSound = 'wood' | 'beep' | 'tick' | 'custom'
 
 export interface AppSettings {
   announceSongName: boolean
@@ -26,10 +35,18 @@ export interface AppSettings {
     advance: MidiCCBinding | null
     pauseStop: MidiCCBinding | null
   }
+  customSound: CustomSoundParams
 }
 
 export const BPM_MIN = 20
 export const BPM_MAX = 300
+
+export const DEFAULT_CUSTOM_SOUND: CustomSoundParams = {
+  source: 'sine',
+  pitch: 440,
+  duration: 40,
+  decay: 200,
+}
 
 export const DEFAULT_SETTINGS: AppSettings = {
   announceSongName: false,
@@ -40,4 +57,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
     advance: null,
     pauseStop: null,
   },
+  customSound: DEFAULT_CUSTOM_SOUND,
 }

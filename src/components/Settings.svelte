@@ -4,7 +4,12 @@
   import { createMidiController, isMidiAvailable } from '../lib/midi'
   import { previewClick } from '../lib/metronome'
   import { isTTSAvailable } from '../lib/tts'
-  import type { ClickSound, MidiCCBinding } from '../lib/types'
+  import type {
+    ClickSound,
+    ClickSoundSource,
+    CustomSoundParams,
+    MidiCCBinding,
+  } from '../lib/types'
   import { settingsStore } from '../stores/settings'
 
   interface BeforeInstallPromptEvent extends Event {
@@ -23,6 +28,12 @@
     { key: 'wood', label: 'Wood' },
     { key: 'beep', label: 'Beep' },
     { key: 'tick', label: 'Tick' },
+    { key: 'custom', label: 'Custom' },
+  ]
+  const customSources: Array<{ key: ClickSoundSource; label: string }> = [
+    { key: 'sine', label: 'Sine' },
+    { key: 'square', label: 'Square' },
+    { key: 'noise', label: 'Noise' },
   ]
   const isIos =
     /iphone|ipad|ipod/i.test(navigator.userAgent) ||
@@ -40,6 +51,22 @@
 
     const channel = binding.channel === 'any' ? 'Any' : `Ch ${binding.channel}`
     return `${channel} · CC ${binding.cc}`
+  }
+
+  function updateCustomSound(params: Partial<CustomSoundParams>): void {
+    settingsStore.setCustomSound({ ...settingsStore.customSound, ...params })
+  }
+
+  function getDecayLabel(decay: number): string {
+    if (decay <= 150) {
+      return 'slow'
+    }
+
+    if (decay <= 350) {
+      return 'medium'
+    }
+
+    return 'fast'
   }
 
   async function startLearn(target: 'advance' | 'pauseStop'): Promise<void> {
@@ -146,10 +173,91 @@
               </button>
             {/each}
           </div>
-          <button class="btn-preview" onclick={() => previewClick($settingsStore.clickSound)}>
+          <button
+            class="btn-preview"
+            onclick={() => previewClick($settingsStore.clickSound, $settingsStore.customSound)}
+          >
             Preview
           </button>
         </div>
+        {#if $settingsStore.clickSound === 'custom'}
+          <div class="custom-panel">
+            <div class="custom-row">
+              <span class="custom-label">Source</span>
+              <div class="mini-seg">
+                {#each customSources as source}
+                  <button
+                    class="mini-seg-btn"
+                    class:active={$settingsStore.customSound.source === source.key}
+                    onclick={() => updateCustomSound({ source: source.key })}
+                  >
+                    {source.label}
+                  </button>
+                {/each}
+              </div>
+            </div>
+
+            <div
+              class="custom-slider-row"
+              class:disabled={$settingsStore.customSound.source === 'noise'}
+            >
+              <div class="custom-slider-header">
+                <span class="custom-label">Pitch</span>
+                <span class="custom-value">{$settingsStore.customSound.pitch} Hz</span>
+              </div>
+              <input
+                type="range"
+                min="100"
+                max="2000"
+                step="10"
+                value={$settingsStore.customSound.pitch}
+                disabled={$settingsStore.customSound.source === 'noise'}
+                oninput={(event) =>
+                  updateCustomSound({
+                    pitch: Number((event.target as HTMLInputElement).value),
+                  })}
+              />
+            </div>
+
+            <div class="custom-slider-row">
+              <div class="custom-slider-header">
+                <span class="custom-label">Duration</span>
+                <span class="custom-value">{$settingsStore.customSound.duration} ms</span>
+              </div>
+              <input
+                type="range"
+                min="10"
+                max="200"
+                step="5"
+                value={$settingsStore.customSound.duration}
+                oninput={(event) =>
+                  updateCustomSound({
+                    duration: Number((event.target as HTMLInputElement).value),
+                  })}
+              />
+            </div>
+
+            <div class="custom-slider-row">
+              <div class="custom-slider-header">
+                <span class="custom-label">Decay</span>
+                <span class="custom-value">
+                  {getDecayLabel($settingsStore.customSound.decay)}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="50"
+                max="600"
+                step="10"
+                value={$settingsStore.customSound.decay}
+                oninput={(event) =>
+                  updateCustomSound({
+                    decay: Number((event.target as HTMLInputElement).value),
+                  })}
+              />
+            </div>
+          </div>
+        {/if}
       </div>
     </section>
 
@@ -396,6 +504,85 @@
     font-weight: 600;
     cursor: pointer;
     flex-shrink: 0;
+  }
+
+  .custom-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+  }
+
+  .custom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .custom-label {
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .custom-value {
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--indigo);
+  }
+
+  .mini-seg {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .mini-seg-btn {
+    padding: 6px 12px;
+    background: none;
+    border: none;
+    border-left: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .mini-seg-btn:first-child {
+    border-left: none;
+  }
+
+  .mini-seg-btn.active {
+    background: var(--indigo);
+    color: #fff;
+  }
+
+  .custom-slider-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .custom-slider-row.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .custom-slider-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .custom-slider-row input[type='range'] {
+    width: 100%;
+    accent-color: var(--indigo);
   }
 
   .installed-label {

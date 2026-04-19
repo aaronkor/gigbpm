@@ -1,4 +1,4 @@
-import type { ClickSound } from './types'
+import type { ClickSound, CustomSoundParams } from './types'
 
 const LOOKAHEAD_SECONDS = 0.1
 const SCHEDULER_INTERVAL_MS = 25
@@ -10,6 +10,7 @@ export interface Metronome {
   resume(): void
   setBpm(bpm: number): void
   setClickSound(sound: ClickSound): void
+  setCustomSoundParams(params: CustomSoundParams): void
   onBeat(callback: () => void): void
   readonly isRunning: boolean
   readonly isPaused: boolean
@@ -32,7 +33,39 @@ function createClickBuffer(
   return buffer
 }
 
-function buildClickBuffer(sound: ClickSound, ctx: AudioContext): AudioBuffer {
+function buildClickBuffer(
+  sound: ClickSound,
+  ctx: AudioContext,
+  customParams?: CustomSoundParams,
+): AudioBuffer {
+  if (sound === 'custom' && customParams) {
+    const duration = customParams.duration / 1000
+    const { source, pitch, decay } = customParams
+
+    if (source === 'sine') {
+      return createClickBuffer(
+        ctx,
+        duration,
+        (time) => Math.sin(2 * Math.PI * pitch * time) * Math.exp(-time * decay),
+      )
+    }
+
+    if (source === 'square') {
+      return createClickBuffer(
+        ctx,
+        duration,
+        (time) =>
+          (Math.sin(2 * Math.PI * pitch * time) > 0 ? 1 : -1) * Math.exp(-time * decay),
+      )
+    }
+
+    return createClickBuffer(
+      ctx,
+      duration,
+      (time) => (Math.random() * 2 - 1) * Math.exp(-time * decay),
+    )
+  }
+
   if (sound === 'beep') {
     const duration = 0.06
     return createClickBuffer(
@@ -57,7 +90,7 @@ function buildClickBuffer(sound: ClickSound, ctx: AudioContext): AudioBuffer {
   )
 }
 
-export function previewClick(sound: ClickSound): void {
+export function previewClick(sound: ClickSound, customParams?: CustomSoundParams): void {
   const AudioContextConstructor =
     globalThis.AudioContext ??
     (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext })
@@ -69,7 +102,7 @@ export function previewClick(sound: ClickSound): void {
 
   const ctx = new AudioContextConstructor()
   const source = ctx.createBufferSource()
-  source.buffer = buildClickBuffer(sound, ctx)
+  source.buffer = buildClickBuffer(sound, ctx, customParams)
   source.connect(ctx.destination)
   source.start()
   source.onended = () => void ctx.close().catch(() => undefined)
@@ -87,11 +120,12 @@ export function createMetronome(
   let paused = false
   let currentSound = initialSound
   let clickBuffer: AudioBuffer | null = null
+  let customSoundParams: CustomSoundParams | undefined = undefined
   const pendingBeatCallbacks: number[] = []
 
   function getClickBuffer(): AudioBuffer {
     if (!clickBuffer) {
-      clickBuffer = buildClickBuffer(currentSound, ctx)
+      clickBuffer = buildClickBuffer(currentSound, ctx, customSoundParams)
     }
 
     return clickBuffer
@@ -205,6 +239,11 @@ export function createMetronome(
       }
 
       currentSound = sound
+      clickBuffer = null
+    },
+
+    setCustomSoundParams(params: CustomSoundParams): void {
+      customSoundParams = params
       clickBuffer = null
     },
 

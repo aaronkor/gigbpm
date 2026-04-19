@@ -66,6 +66,36 @@ describe('loadSettings', () => {
   })
 })
 
+describe('loadSettings - customSound migration', () => {
+  it('returns DEFAULT_CUSTOM_SOUND when nothing stored', () => {
+    expect(loadSettings().customSound).toEqual(DEFAULT_SETTINGS.customSound)
+  })
+
+  it('returns full defaults when stored record has no customSound key', () => {
+    localStorage.setItem('gigbpm_settings', JSON.stringify({ announceSongName: true }))
+
+    expect(loadSettings().customSound).toEqual(DEFAULT_SETTINGS.customSound)
+  })
+
+  it('merges partial customSound with missing keys filled from defaults', () => {
+    localStorage.setItem('gigbpm_settings', JSON.stringify({ customSound: { source: 'square' } }))
+
+    const result = loadSettings()
+
+    expect(result.customSound.source).toBe('square')
+    expect(result.customSound.pitch).toBe(DEFAULT_SETTINGS.customSound.pitch)
+    expect(result.customSound.duration).toBe(DEFAULT_SETTINGS.customSound.duration)
+    expect(result.customSound.decay).toBe(DEFAULT_SETTINGS.customSound.decay)
+  })
+
+  it('preserves all fields when fully stored', () => {
+    const stored = { source: 'noise', pitch: 800, duration: 80, decay: 300 }
+    localStorage.setItem('gigbpm_settings', JSON.stringify({ customSound: stored }))
+
+    expect(loadSettings().customSound).toEqual(stored)
+  })
+})
+
 describe('saveSettings', () => {
   it('persists settings to localStorage', () => {
     const settings: AppSettings = { ...DEFAULT_SETTINGS, announceSongName: true }
@@ -93,6 +123,28 @@ describe('settingsStore.setClickSound', () => {
     expect(JSON.parse(localStorage.getItem('gigbpm_settings') ?? '{}').clickSound).toBe('beep')
 
     settingsStore.setClickSound('wood')
+  })
+})
+
+describe('settingsStore.setCustomSound', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    settingsStore.setCustomSound(DEFAULT_SETTINGS.customSound)
+  })
+
+  it('defaults customSound to DEFAULT_CUSTOM_SOUND', () => {
+    expect(settingsStore.customSound).toEqual(DEFAULT_SETTINGS.customSound)
+  })
+
+  it('updates customSound and persists it', () => {
+    const updated = { source: 'square' as const, pitch: 600, duration: 60, decay: 400 }
+
+    settingsStore.setCustomSound(updated)
+
+    expect(settingsStore.customSound).toEqual(updated)
+    expect(JSON.parse(localStorage.getItem('gigbpm_settings') ?? '{}').customSound).toEqual(
+      updated,
+    )
   })
 })
 

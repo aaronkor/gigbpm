@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createMetronome, previewClick } from '../lib/metronome'
+import type { CustomSoundParams } from '../lib/types'
+
+const DEFAULT_CUSTOM: CustomSoundParams = {
+  source: 'sine',
+  pitch: 440,
+  duration: 40,
+  decay: 200,
+}
 
 function makeMockContext() {
   let time = 0
@@ -125,6 +133,7 @@ describe('createMetronome - click sound', () => {
     expect(() => metronome.setClickSound('wood')).not.toThrow()
     expect(() => metronome.setClickSound('beep')).not.toThrow()
     expect(() => metronome.setClickSound('tick')).not.toThrow()
+    expect(() => metronome.setClickSound('custom')).not.toThrow()
   })
 
   it('setClickSound can be called while running', () => {
@@ -138,9 +147,86 @@ describe('createMetronome - click sound', () => {
   })
 })
 
+describe('buildClickBuffer - custom sound', () => {
+  it('sine source produces buffer of correct length', () => {
+    const ctx = makeMockContext()
+    const metronome = createMetronome(ctx as unknown as AudioContext)
+
+    metronome.setCustomSoundParams(DEFAULT_CUSTOM)
+    metronome.setClickSound('custom')
+    metronome.start(120)
+
+    const expectedLength = Math.floor(44_100 * (DEFAULT_CUSTOM.duration / 1000))
+    expect(ctx.createBuffer).toHaveBeenCalledWith(1, expectedLength, 44_100)
+
+    metronome.stop()
+  })
+
+  it('square source produces buffer of correct length', () => {
+    const ctx = makeMockContext()
+    const params: CustomSoundParams = { ...DEFAULT_CUSTOM, source: 'square', duration: 80 }
+    const metronome = createMetronome(ctx as unknown as AudioContext)
+
+    metronome.setCustomSoundParams(params)
+    metronome.setClickSound('custom')
+    metronome.start(120)
+
+    const expectedLength = Math.floor(44_100 * (params.duration / 1000))
+    expect(ctx.createBuffer).toHaveBeenCalledWith(1, expectedLength, 44_100)
+
+    metronome.stop()
+  })
+
+  it('noise source produces buffer of correct length', () => {
+    const ctx = makeMockContext()
+    const params: CustomSoundParams = { ...DEFAULT_CUSTOM, source: 'noise', duration: 25 }
+    const metronome = createMetronome(ctx as unknown as AudioContext)
+
+    metronome.setCustomSoundParams(params)
+    metronome.setClickSound('custom')
+    metronome.start(120)
+
+    const expectedLength = Math.floor(44_100 * (params.duration / 1000))
+    expect(ctx.createBuffer).toHaveBeenCalledWith(1, expectedLength, 44_100)
+
+    metronome.stop()
+  })
+})
+
+describe('setCustomSoundParams', () => {
+  it('is exposed on the Metronome interface', () => {
+    const metronome = createMetronome(makeMockContext() as unknown as AudioContext)
+
+    expect(typeof metronome.setCustomSoundParams).toBe('function')
+  })
+
+  it('invalidates the click buffer cache', () => {
+    const ctx = makeMockContext()
+    const metronome = createMetronome(ctx as unknown as AudioContext)
+
+    metronome.setClickSound('custom')
+    metronome.setCustomSoundParams(DEFAULT_CUSTOM)
+    metronome.start(120)
+
+    const callsBefore = ctx.createBuffer.mock.calls.length
+
+    metronome.setCustomSoundParams({ ...DEFAULT_CUSTOM, pitch: 880 })
+    metronome.stop()
+    metronome.start(120)
+
+    expect(ctx.createBuffer.mock.calls.length).toBeGreaterThan(callsBefore)
+
+    metronome.stop()
+  })
+})
+
 describe('previewClick', () => {
   it('is exported', () => {
     expect(typeof previewClick).toBe('function')
+  })
+
+  it('does not throw when called with custom and params', () => {
+    expect(() => previewClick('custom', DEFAULT_CUSTOM)).not.toThrow()
   })
 })
 
