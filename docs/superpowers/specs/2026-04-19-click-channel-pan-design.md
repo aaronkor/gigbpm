@@ -43,11 +43,42 @@ The panner is created fresh per click (same lifetime as the `BufferSourceNode`).
 | `'right'` | `+1` |
 | `'both'` | `0` |
 
-`setClickChannel` stores the value; takes effect on the next scheduled click.
+`setClickChannel` stores the value; takes effect on the next scheduled click (no interruption to in-flight clicks).
 
 ### `previewClick`
 
-Add optional `channel: ClickChannel = 'both'` parameter. Apply the same panner in the preview path.
+Updated signature:
+
+```ts
+export function previewClick(
+  sound: ClickSound,
+  customParams?: CustomSoundParams,
+  channel: ClickChannel = 'both',
+): void
+```
+
+Apply the same `StereoPannerNode` pattern in the preview path.
+
+## Noop Metronome (`src/stores/performance.ts` — `createNoopMetronome`)
+
+`createNoopMetronome` must implement all `Metronome` interface methods. Add:
+
+```ts
+setClickChannel(): void {},
+```
+
+## Performance Store (`src/stores/performance.ts`)
+
+The settings subscriber (lines 60–73) currently syncs `clickSound` and `customSound` to the metronome. Extend it to also sync `clickChannel`:
+
+```ts
+if ($settings.clickChannel !== syncedClickChannel) {
+  metronome.setClickChannel($settings.clickChannel)
+  syncedClickChannel = $settings.clickChannel
+}
+```
+
+Add `let syncedClickChannel: ClickChannel | null = null` alongside the other synced-state variables.
 
 ## Settings Store (`src/stores/settings.ts`)
 
@@ -67,7 +98,7 @@ In the **Audio** section, add a "Channel" row below the Click Sound row. Use a 3
 
 ## Storage (`src/lib/storage.ts`)
 
-`loadSettings` applies a migration: if the loaded object lacks `clickChannel`, set it to `'both'` before returning.
+In `loadSettings`, after parsing the stored object, apply a migration: if the result lacks `clickChannel`, set `result.clickChannel = 'both'` before returning. This handles existing installations with no stored channel preference.
 
 ## Error handling
 
