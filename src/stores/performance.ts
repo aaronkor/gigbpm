@@ -3,7 +3,7 @@ import { get, writable } from 'svelte/store'
 import { createMetronome, type Metronome } from '../lib/metronome'
 import { createMidiController, type MidiController } from '../lib/midi'
 import { announce, isTTSAvailable } from '../lib/tts'
-import type { ClickSound, CustomSoundParams, Setlist, Song } from '../lib/types'
+import type { ClickChannel, ClickSound, CustomSoundParams, Setlist, Song } from '../lib/types'
 import { settingsStore } from './settings'
 
 interface PerformanceState {
@@ -27,6 +27,7 @@ function createNoopMetronome(): Metronome {
     setBpm(): void {},
     setClickSound(): void {},
     setCustomSoundParams(): void {},
+    setClickChannel(): void {},
     onBeat(callback: () => void): void {
       beatCallback = callback
     },
@@ -56,10 +57,12 @@ const audioContext = createAudioContextInstance()
 const metronome: Metronome = audioContext ? createMetronome(audioContext) : createNoopMetronome()
 let syncedClickSound: ClickSound | null = null
 let syncedCustomSound: CustomSoundParams | null = null
+let syncedClickChannel: ClickChannel | null = null
 
 settingsStore.subscribe(($settings) => {
   const clickSoundChanged = $settings.clickSound !== syncedClickSound
   const customSoundChanged = $settings.customSound !== syncedCustomSound
+  const clickChannelChanged = $settings.clickChannel !== syncedClickChannel
 
   if (clickSoundChanged) {
     metronome.setClickSound($settings.clickSound)
@@ -69,6 +72,11 @@ settingsStore.subscribe(($settings) => {
   if (customSoundChanged || (clickSoundChanged && $settings.clickSound === 'custom')) {
     metronome.setCustomSoundParams($settings.customSound)
     syncedCustomSound = $settings.customSound
+  }
+
+  if (clickChannelChanged) {
+    metronome.setClickChannel($settings.clickChannel)
+    syncedClickChannel = $settings.clickChannel
   }
 })
 
