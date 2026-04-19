@@ -1,12 +1,13 @@
 import { get, writable } from 'svelte/store'
 
 import { loadSettings, saveSettings } from '../lib/storage'
-import type { AppSettings, ClickSound, CustomSoundParams, MidiBinding } from '../lib/types'
+import type { AppSettings, ClickChannel, ClickSound, CustomSoundParams, MidiBinding } from '../lib/types'
 
 interface SettingsState {
   all: AppSettings
   announceSongName: boolean
   clickSound: ClickSound
+  clickChannel: ClickChannel
   performanceMode: boolean
   midi: AppSettings['midi']
   customSound: CustomSoundParams
@@ -17,6 +18,7 @@ function createState(all: AppSettings): SettingsState {
     all,
     announceSongName: all.announceSongName,
     clickSound: all.clickSound,
+    clickChannel: all.clickChannel,
     performanceMode: all.performanceMode,
     midi: all.midi,
     customSound: all.customSound,
@@ -65,12 +67,20 @@ function createSettingsStore() {
       return get(store).customSound
     },
 
+    get clickChannel() {
+      return get(store).clickChannel
+    },
+
     setAnnounceSongName(value: boolean): void {
       updateSettings((settings) => ({ ...settings, announceSongName: value }))
     },
 
     setClickSound(value: ClickSound): void {
       updateSettings((settings) => ({ ...settings, clickSound: value }))
+    },
+
+    setClickChannel(value: ClickChannel): void {
+      updateSettings((settings) => ({ ...settings, clickChannel: value }))
     },
 
     setCustomSound(params: CustomSoundParams): void {

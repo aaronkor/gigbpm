@@ -179,3 +179,41 @@ describe('settingsStore.setPerformanceMode', () => {
     settingsStore.setPerformanceMode(false)
   })
 })
+
+describe('loadSettings - clickChannel', () => {
+  it('defaults clickChannel to both when nothing stored', () => {
+    expect(loadSettings().clickChannel).toBe('both')
+  })
+
+  it('returns both when stored settings have no clickChannel key', () => {
+    localStorage.setItem('gigbpm_settings', JSON.stringify({ announceSongName: true }))
+    expect(loadSettings().clickChannel).toBe('both')
+  })
+
+  it('returns stored clickChannel value', () => {
+    localStorage.setItem('gigbpm_settings', JSON.stringify({ clickChannel: 'left' }))
+    expect(loadSettings().clickChannel).toBe('left')
+  })
+})
+
+describe('settingsStore.setClickChannel', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    settingsStore.setClickChannel('both')
+  })
+
+  it('defaults clickChannel to both', () => {
+    expect(settingsStore.clickChannel).toBe('both')
+  })
+
+  it('updates clickChannel and persists it', () => {
+    settingsStore.setClickChannel('right')
+
+    expect(settingsStore.clickChannel).toBe('right')
+    expect(
+      JSON.parse(localStorage.getItem('gigbpm_settings') ?? '{}').clickChannel,
+    ).toBe('right')
+
+    settingsStore.setClickChannel('both')
+  })
+})
