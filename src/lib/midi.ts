@@ -17,6 +17,7 @@ export interface MidiController {
   simulateCC(channel: number, cc: number, value: number): void
   simulateNote(channel: number, note: number, velocity: number): void
   simulatePC(channel: number, program: number): void
+  simulateRaw(data: Uint8Array): void
 }
 
 export function isMidiAvailable(): boolean {
@@ -171,6 +172,10 @@ export function createMidiController(
 
     simulatePC(channel: number, program: number): void {
       handleMessage({ type: 'pc', channel, number: program })
+    },
+
+    simulateRaw(data: Uint8Array): void {
+      onMidiMessage({ data } as MIDIMessageEvent)
     },
   }
 }

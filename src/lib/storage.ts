@@ -17,6 +17,7 @@ function migrateMidiBinding(b: unknown): MidiBinding | null {
   if (!obj.type && 'cc' in obj) {
     return { type: 'cc', channel: obj.channel as number | 'any', cc: obj.cc as number }
   }
+  if (!['cc', 'note', 'pc'].includes(obj.type as string)) return null
   return obj as MidiBinding
 }
 

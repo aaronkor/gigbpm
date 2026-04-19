@@ -135,6 +135,17 @@ describe('createMidiController', () => {
     expect(onAdvance).not.toHaveBeenCalled()
   })
 
+  it('ignores Note Off (0x80)', () => {
+    const onAdvance = vi.fn()
+    const controller = createMidiController(onAdvance, vi.fn())
+
+    controller.setBindings({ type: 'note', channel: 1, note: 60 }, null)
+    // 0x80 = Note Off on channel 1, note 60, velocity 64
+    controller.simulateRaw(new Uint8Array([0x80, 60, 64]))
+
+    expect(onAdvance).not.toHaveBeenCalled()
+  })
+
   // Program Change tests
   it('fires onAdvance when a PC message matches the advance binding', () => {
     const onAdvance = vi.fn()
