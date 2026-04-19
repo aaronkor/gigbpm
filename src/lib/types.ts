@@ -26,9 +26,12 @@ export interface CustomSoundParams {
 
 export type ClickSound = 'wood' | 'beep' | 'tick' | 'custom'
 
+export type ClickChannel = 'left' | 'right' | 'both'
+
 export interface AppSettings {
   announceSongName: boolean
   clickSound: ClickSound
+  clickChannel: ClickChannel
   performanceMode: boolean
   midi: {
     enabled: boolean
@@ -51,6 +54,7 @@ export const DEFAULT_CUSTOM_SOUND: CustomSoundParams = {
 export const DEFAULT_SETTINGS: AppSettings = {
   announceSongName: false,
   clickSound: 'wood',
+  clickChannel: 'both',
   performanceMode: false,
   midi: {
     enabled: false,
