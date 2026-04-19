@@ -1,7 +1,7 @@
 import { get, writable } from 'svelte/store'
 
 import { loadSettings, saveSettings } from '../lib/storage'
-import type { AppSettings, ClickSound, CustomSoundParams, MidiCCBinding } from '../lib/types'
+import type { AppSettings, ClickSound, CustomSoundParams, MidiBinding } from '../lib/types'
 
 interface SettingsState {
   all: AppSettings
@@ -88,14 +88,14 @@ function createSettingsStore() {
       }))
     },
 
-    setMidiAdvanceBinding(binding: MidiCCBinding | null): void {
+    setMidiAdvanceBinding(binding: MidiBinding | null): void {
       updateSettings((settings) => ({
         ...settings,
         midi: { ...settings.midi, advance: binding },
       }))
     },
 
-    setMidiPauseStopBinding(binding: MidiCCBinding | null): void {
+    setMidiPauseStopBinding(binding: MidiBinding | null): void {
       updateSettings((settings) => ({
         ...settings,
         midi: { ...settings.midi, pauseStop: binding },

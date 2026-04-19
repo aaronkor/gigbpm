@@ -8,7 +8,7 @@
     ClickSound,
     ClickSoundSource,
     CustomSoundParams,
-    MidiCCBinding,
+    MidiBinding,
   } from '../lib/types'
   import { settingsStore } from '../stores/settings'
 
@@ -44,13 +44,12 @@
   let showIosSheet = $state(false)
   const midiCtrl = createMidiController(() => {}, () => {})
 
-  function formatBinding(binding: MidiCCBinding | null): string {
-    if (!binding) {
-      return 'Not set'
-    }
-
-    const channel = binding.channel === 'any' ? 'Any' : `Ch ${binding.channel}`
-    return `${channel} · CC ${binding.cc}`
+  function formatBinding(binding: MidiBinding | null): string {
+    if (!binding) return 'Not set'
+    const ch = binding.channel === 'any' ? 'Any' : `Ch ${binding.channel}`
+    const type = binding.type.toUpperCase()
+    const num = binding.type === 'cc' ? binding.cc : binding.type === 'note' ? binding.note : binding.program
+    return `${ch} · ${type} ${num}`
   }
 
   function updateCustomSound(params: Partial<CustomSoundParams>): void {
