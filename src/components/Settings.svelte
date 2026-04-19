@@ -5,6 +5,7 @@
   import { previewClick } from '../lib/metronome'
   import { isTTSAvailable } from '../lib/tts'
   import type {
+    ClickChannel,
     ClickSound,
     ClickSoundSource,
     CustomSoundParams,
@@ -174,7 +175,7 @@
           </div>
           <button
             class="btn-preview"
-            onclick={() => previewClick($settingsStore.clickSound, $settingsStore.customSound)}
+            onclick={() => previewClick($settingsStore.clickSound, $settingsStore.customSound, $settingsStore.clickChannel)}
           >
             Preview
           </button>
@@ -257,6 +258,36 @@
             </div>
           </div>
         {/if}
+      </div>
+      <div class="row sound-row">
+        <div class="row-text">
+          <div class="row-title">Channel</div>
+        </div>
+        <div class="sound-controls">
+          <div class="sound-seg">
+            <button
+              class="seg-btn"
+              class:active={$settingsStore.clickChannel === 'left'}
+              onclick={() => settingsStore.setClickChannel('left')}
+            >
+              Left
+            </button>
+            <button
+              class="seg-btn"
+              class:active={$settingsStore.clickChannel === 'both'}
+              onclick={() => settingsStore.setClickChannel('both')}
+            >
+              Both
+            </button>
+            <button
+              class="seg-btn"
+              class:active={$settingsStore.clickChannel === 'right'}
+              onclick={() => settingsStore.setClickChannel('right')}
+            >
+              Right
+            </button>
+          </div>
+        </div>
       </div>
     </section>
 
