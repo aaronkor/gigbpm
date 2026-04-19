@@ -1,5 +1,10 @@
 {
   "enabledPlugins": {
     "opendesign@opendata-skills": true
+  },
+  "permissions": {
+    "allow": [
+      "Read(/Users/aka/.claude/plugins/cache/claude-plugins-official/superpowers/**)"
+    ]
   }
 }
