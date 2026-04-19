@@ -96,6 +96,16 @@ describe('loadSettings - customSound migration', () => {
   })
 })
 
+describe('loadSettings - MIDI migration', () => {
+  it('migrates a legacy CC binding with no type field', () => {
+    localStorage.setItem('gigbpm_settings', JSON.stringify({
+      midi: { enabled: true, advance: { channel: 1, cc: 64 }, pauseStop: null }
+    }))
+    const settings = loadSettings()
+    expect(settings.midi.advance).toEqual({ type: 'cc', channel: 1, cc: 64 })
+  })
+})
+
 describe('saveSettings', () => {
   it('persists settings to localStorage', () => {
     const settings: AppSettings = { ...DEFAULT_SETTINGS, announceSongName: true }
