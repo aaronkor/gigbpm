@@ -277,13 +277,17 @@ describe('createMetronome - click channel', () => {
   it('sets pan to -1 for left channel', () => {
     const ctx = makeMockContext()
     const pannerNode = { pan: { value: 0 }, connect: vi.fn() }
+    const sourceNode = { buffer: null, connect: vi.fn(), start: vi.fn() }
     ctx.createStereoPanner.mockReturnValue(pannerNode)
+    ctx.createBufferSource.mockReturnValue(sourceNode)
     const metronome = createMetronome(ctx as unknown as AudioContext)
 
     metronome.setClickChannel('left')
     metronome.start(120)
 
     expect(pannerNode.pan.value).toBe(-1)
+    expect(sourceNode.connect).toHaveBeenCalledWith(pannerNode)
+    expect(pannerNode.connect).toHaveBeenCalledWith(ctx.destination)
 
     metronome.stop()
   })
@@ -291,13 +295,17 @@ describe('createMetronome - click channel', () => {
   it('sets pan to +1 for right channel', () => {
     const ctx = makeMockContext()
     const pannerNode = { pan: { value: 0 }, connect: vi.fn() }
+    const sourceNode = { buffer: null, connect: vi.fn(), start: vi.fn() }
     ctx.createStereoPanner.mockReturnValue(pannerNode)
+    ctx.createBufferSource.mockReturnValue(sourceNode)
     const metronome = createMetronome(ctx as unknown as AudioContext)
 
     metronome.setClickChannel('right')
     metronome.start(120)
 
     expect(pannerNode.pan.value).toBe(1)
+    expect(sourceNode.connect).toHaveBeenCalledWith(pannerNode)
+    expect(pannerNode.connect).toHaveBeenCalledWith(ctx.destination)
 
     metronome.stop()
   })
@@ -305,13 +313,17 @@ describe('createMetronome - click channel', () => {
   it('sets pan to 0 for both channels', () => {
     const ctx = makeMockContext()
     const pannerNode = { pan: { value: 99 }, connect: vi.fn() }
+    const sourceNode = { buffer: null, connect: vi.fn(), start: vi.fn() }
     ctx.createStereoPanner.mockReturnValue(pannerNode)
+    ctx.createBufferSource.mockReturnValue(sourceNode)
     const metronome = createMetronome(ctx as unknown as AudioContext)
 
     metronome.setClickChannel('both')
     metronome.start(120)
 
     expect(pannerNode.pan.value).toBe(0)
+    expect(sourceNode.connect).toHaveBeenCalledWith(pannerNode)
+    expect(pannerNode.connect).toHaveBeenCalledWith(ctx.destination)
 
     metronome.stop()
   })

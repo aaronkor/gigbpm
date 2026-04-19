@@ -91,6 +91,12 @@ function buildClickBuffer(
   )
 }
 
+function panValue(channel: ClickChannel): number {
+  if (channel === 'left') return -1
+  if (channel === 'right') return 1
+  return 0
+}
+
 export function previewClick(
   sound: ClickSound,
   customParams?: CustomSoundParams,
@@ -109,7 +115,7 @@ export function previewClick(
   const source = ctx.createBufferSource()
   source.buffer = buildClickBuffer(sound, ctx, customParams)
   const panner = ctx.createStereoPanner()
-  panner.pan.value = channel === 'left' ? -1 : channel === 'right' ? 1 : 0
+  panner.pan.value = panValue(channel)
   source.connect(panner)
   panner.connect(ctx.destination)
   source.start()
@@ -138,12 +144,6 @@ export function createMetronome(
     }
 
     return clickBuffer
-  }
-
-  function panValue(channel: ClickChannel): number {
-    if (channel === 'left') return -1
-    if (channel === 'right') return 1
-    return 0
   }
 
   function scheduleClick(time: number): void {
