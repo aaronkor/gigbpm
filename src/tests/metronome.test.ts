@@ -32,6 +32,10 @@ function makeMockContext() {
       connect: vi.fn(),
       start: vi.fn(),
     })),
+    createStereoPanner: vi.fn(() => ({
+      pan: { value: 0 },
+      connect: vi.fn(),
+    })),
   }
 }
 
@@ -241,5 +245,82 @@ describe('beat interval math', () => {
 
   it('300 BPM equals 0.2 seconds per beat', () => {
     expect(60 / 300).toBeCloseTo(0.2)
+  })
+})
+
+describe('createMetronome - click channel', () => {
+  it('exposes setClickChannel method', () => {
+    const metronome = createMetronome(makeMockContext() as unknown as AudioContext)
+
+    expect(typeof metronome.setClickChannel).toBe('function')
+  })
+
+  it('setClickChannel does not throw for any valid channel', () => {
+    const metronome = createMetronome(makeMockContext() as unknown as AudioContext)
+
+    expect(() => metronome.setClickChannel('left')).not.toThrow()
+    expect(() => metronome.setClickChannel('right')).not.toThrow()
+    expect(() => metronome.setClickChannel('both')).not.toThrow()
+  })
+
+  it('creates a StereoPannerNode when scheduling a click', () => {
+    const ctx = makeMockContext()
+    const metronome = createMetronome(ctx as unknown as AudioContext)
+
+    metronome.start(120)
+
+    expect(ctx.createStereoPanner).toHaveBeenCalled()
+
+    metronome.stop()
+  })
+
+  it('sets pan to -1 for left channel', () => {
+    const ctx = makeMockContext()
+    const pannerNode = { pan: { value: 0 }, connect: vi.fn() }
+    ctx.createStereoPanner.mockReturnValue(pannerNode)
+    const metronome = createMetronome(ctx as unknown as AudioContext)
+
+    metronome.setClickChannel('left')
+    metronome.start(120)
+
+    expect(pannerNode.pan.value).toBe(-1)
+
+    metronome.stop()
+  })
+
+  it('sets pan to +1 for right channel', () => {
+    const ctx = makeMockContext()
+    const pannerNode = { pan: { value: 0 }, connect: vi.fn() }
+    ctx.createStereoPanner.mockReturnValue(pannerNode)
+    const metronome = createMetronome(ctx as unknown as AudioContext)
+
+    metronome.setClickChannel('right')
+    metronome.start(120)
+
+    expect(pannerNode.pan.value).toBe(1)
+
+    metronome.stop()
+  })
+
+  it('sets pan to 0 for both channels', () => {
+    const ctx = makeMockContext()
+    const pannerNode = { pan: { value: 99 }, connect: vi.fn() }
+    ctx.createStereoPanner.mockReturnValue(pannerNode)
+    const metronome = createMetronome(ctx as unknown as AudioContext)
+
+    metronome.setClickChannel('both')
+    metronome.start(120)
+
+    expect(pannerNode.pan.value).toBe(0)
+
+    metronome.stop()
+  })
+})
+
+describe('previewClick - channel param', () => {
+  it('accepts an optional channel parameter without throwing', () => {
+    expect(() => previewClick('wood', undefined, 'left')).not.toThrow()
+    expect(() => previewClick('wood', undefined, 'right')).not.toThrow()
+    expect(() => previewClick('wood', undefined, 'both')).not.toThrow()
   })
 })

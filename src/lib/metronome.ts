@@ -1,4 +1,4 @@
-import type { ClickSound, CustomSoundParams } from './types'
+import type { ClickChannel, ClickSound, CustomSoundParams } from './types'
 
 const LOOKAHEAD_SECONDS = 0.1
 const SCHEDULER_INTERVAL_MS = 25
@@ -11,6 +11,7 @@ export interface Metronome {
   setBpm(bpm: number): void
   setClickSound(sound: ClickSound): void
   setCustomSoundParams(params: CustomSoundParams): void
+  setClickChannel(channel: ClickChannel): void
   onBeat(callback: () => void): void
   readonly isRunning: boolean
   readonly isPaused: boolean
@@ -90,7 +91,11 @@ function buildClickBuffer(
   )
 }
 
-export function previewClick(sound: ClickSound, customParams?: CustomSoundParams): void {
+export function previewClick(
+  sound: ClickSound,
+  customParams?: CustomSoundParams,
+  channel: ClickChannel = 'both',
+): void {
   const AudioContextConstructor =
     globalThis.AudioContext ??
     (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext })
@@ -103,7 +108,10 @@ export function previewClick(sound: ClickSound, customParams?: CustomSoundParams
   const ctx = new AudioContextConstructor()
   const source = ctx.createBufferSource()
   source.buffer = buildClickBuffer(sound, ctx, customParams)
-  source.connect(ctx.destination)
+  const panner = ctx.createStereoPanner()
+  panner.pan.value = channel === 'left' ? -1 : channel === 'right' ? 1 : 0
+  source.connect(panner)
+  panner.connect(ctx.destination)
   source.start()
   source.onended = () => void ctx.close().catch(() => undefined)
 }
@@ -121,6 +129,7 @@ export function createMetronome(
   let currentSound = initialSound
   let clickBuffer: AudioBuffer | null = null
   let customSoundParams: CustomSoundParams | undefined = undefined
+  let currentChannel: ClickChannel = 'both'
   const pendingBeatCallbacks: number[] = []
 
   function getClickBuffer(): AudioBuffer {
@@ -131,10 +140,19 @@ export function createMetronome(
     return clickBuffer
   }
 
+  function panValue(channel: ClickChannel): number {
+    if (channel === 'left') return -1
+    if (channel === 'right') return 1
+    return 0
+  }
+
   function scheduleClick(time: number): void {
     const source = ctx.createBufferSource()
     source.buffer = getClickBuffer()
-    source.connect(ctx.destination)
+    const panner = ctx.createStereoPanner()
+    panner.pan.value = panValue(currentChannel)
+    source.connect(panner)
+    panner.connect(ctx.destination)
     source.start(time)
     pendingBeatCallbacks.push(time)
   }
@@ -245,6 +263,10 @@ export function createMetronome(
     setCustomSoundParams(params: CustomSoundParams): void {
       customSoundParams = params
       clickBuffer = null
+    },
+
+    setClickChannel(channel: ClickChannel): void {
+      currentChannel = channel
     },
 
     onBeat(callback: () => void): void {
