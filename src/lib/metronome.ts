@@ -15,46 +15,46 @@ export interface Metronome {
   readonly isPaused: boolean
 }
 
-function buildClickBuffer(sound: ClickSound, ctx: AudioContext): AudioBuffer {
-  if (sound === 'beep') {
-    const duration = 0.06
-    const length = Math.floor(ctx.sampleRate * duration)
-    const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
-    const data = buffer.getChannelData(0)
-
-    for (let index = 0; index < length; index += 1) {
-      const time = index / ctx.sampleRate
-      data[index] = Math.sin(2 * Math.PI * 880 * time) * (1 - time / duration)
-    }
-
-    return buffer
-  }
-
-  if (sound === 'tick') {
-    const duration = 0.025
-    const length = Math.floor(ctx.sampleRate * duration)
-    const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
-    const data = buffer.getChannelData(0)
-
-    for (let index = 0; index < length; index += 1) {
-      const time = index / ctx.sampleRate
-      data[index] = (Math.random() * 2 - 1) * Math.exp(-time * 400)
-    }
-
-    return buffer
-  }
-
-  const duration = 0.04
+function createClickBuffer(
+  ctx: AudioContext,
+  duration: number,
+  sampleAtTime: (time: number) => number,
+): AudioBuffer {
   const length = Math.floor(ctx.sampleRate * duration)
   const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
   const data = buffer.getChannelData(0)
 
   for (let index = 0; index < length; index += 1) {
     const time = index / ctx.sampleRate
-    data[index] = (Math.random() * 2 - 1) * Math.exp(-time * 150)
+    data[index] = sampleAtTime(time)
   }
 
   return buffer
+}
+
+function buildClickBuffer(sound: ClickSound, ctx: AudioContext): AudioBuffer {
+  if (sound === 'beep') {
+    const duration = 0.06
+    return createClickBuffer(
+      ctx,
+      duration,
+      (time) => Math.sin(2 * Math.PI * 880 * time) * (1 - time / duration),
+    )
+  }
+
+  if (sound === 'tick') {
+    return createClickBuffer(
+      ctx,
+      0.025,
+      (time) => (Math.random() * 2 - 1) * Math.exp(-time * 400),
+    )
+  }
+
+  return createClickBuffer(
+    ctx,
+    0.04,
+    (time) => (Math.random() * 2 - 1) * Math.exp(-time * 150),
+  )
 }
 
 export function previewClick(sound: ClickSound): void {
