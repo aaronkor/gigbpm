@@ -10,10 +10,10 @@ export interface Setlist {
   songs: Song[]
 }
 
-export interface MidiCCBinding {
-  channel: number | 'any'
-  cc: number
-}
+export type MidiBinding =
+  | { type: 'cc';   channel: number | 'any'; cc: number }
+  | { type: 'note'; channel: number | 'any'; note: number }
+  | { type: 'pc';   channel: number | 'any'; program: number }
 
 export type ClickSoundSource = 'sine' | 'square' | 'noise'
 
@@ -32,8 +32,8 @@ export interface AppSettings {
   performanceMode: boolean
   midi: {
     enabled: boolean
-    advance: MidiCCBinding | null
-    pauseStop: MidiCCBinding | null
+    advance: MidiBinding | null
+    pauseStop: MidiBinding | null
   }
   customSound: CustomSoundParams
 }
