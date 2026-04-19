@@ -32,7 +32,7 @@ export type ClickSoundSource = 'sine' | 'square' | 'noise'
 export interface CustomSoundParams {
   source: ClickSoundSource
   pitch: number    // Hz, range 100–2000; ignored when source = 'noise'
-  duration: number // ms, range 10–200
+  duration: number // ms (user-facing), range 10–200; converted to seconds at synthesis time
   decay: number    // exponential decay coefficient, range 50–600 (higher = faster fade)
 }
 ```
@@ -59,7 +59,24 @@ export const DEFAULT_CUSTOM_SOUND: CustomSoundParams = {
 
 ### Storage migration
 
-`loadSettings` merges stored data with `DEFAULT_SETTINGS`, so existing localStorage records lacking `customSound` automatically get the default values on first load.
+`loadSettings` must deep-merge `customSound` the same way it already deep-merges `midi`:
+
+```ts
+return {
+  ...defaults,
+  ...stored,
+  midi: { ...defaults.midi, ...stored.midi },
+  customSound: { ...defaults.customSound, ...stored.customSound },
+}
+```
+
+This ensures existing localStorage records lacking `customSound` (or having only partial keys) always get valid defaults.
+
+`cloneDefaultSettings()` in `storage.ts` must also spread `customSound` to avoid shared-reference mutation:
+
+```ts
+{ ...DEFAULT_SETTINGS, midi: { ...DEFAULT_SETTINGS.midi }, customSound: { ...DEFAULT_SETTINGS.customSound } }
+```
 
 ---
 
@@ -75,22 +92,42 @@ function buildClickBuffer(
 ): AudioBuffer
 ```
 
-When `sound === 'custom'` and `customParams` is provided:
-
-| source | synthesis |
-|--------|-----------|
-| `sine` | `Math.sin(2π · pitch · t) · (1 − t / duration)` |
-| `square` | sign of sine, same linear decay envelope |
-| `noise` | `(Math.random() * 2 − 1) · exp(−t · decay)` |
-
-The three existing preset cases (`wood`, `beep`, `tick`) are unchanged.
-
-### `Metronome` interface addition
+When `sound === 'custom'` and `customParams` is provided, convert duration to seconds first:
 
 ```ts
-setCustomSoundParams(params: CustomSoundParams): void
-// Sets internal customParams and invalidates the clickBuffer cache
+const durationSec = customParams.duration / 1000
 ```
+
+All three custom sources use **exponential decay** with the `decay` coefficient, consistent with existing presets:
+
+| source | synthesis (`t` is time in seconds) |
+|--------|--------------------------------------|
+| `sine` | `Math.sin(2π · pitch · t) · exp(−t · decay)` |
+| `square` | `(sin(2π · pitch · t) > 0 ? 1 : −1) · exp(−t · decay)` |
+| `noise` | `(Math.random() * 2 − 1) · exp(−t · decay)` |
+
+Buffer length: `Math.floor(ctx.sampleRate * durationSec)`.
+
+The three existing preset cases (`wood`, `beep`, `tick`) are unchanged. Note: `beep` uses a linear envelope `(1 - time / duration)` while `tick` and `wood` use exponential — this is intentional and not being changed.
+
+### Updated `Metronome` interface
+
+```ts
+export interface Metronome {
+  start(bpm: number): void
+  stop(): void
+  pause(): void
+  resume(): void
+  setBpm(bpm: number): void
+  setClickSound(sound: ClickSound): void
+  setCustomSoundParams(params: CustomSoundParams): void  // NEW
+  onBeat(callback: () => void): void
+  readonly isRunning: boolean
+  readonly isPaused: boolean
+}
+```
+
+`setCustomSoundParams` stores the params internally and sets `clickBuffer = null` to invalidate the cache. `createNoopMetronome()` in `src/stores/performance.ts` must also implement this as a no-op.
 
 ### `previewClick` signature change
 
@@ -115,7 +152,7 @@ Add `{ key: 'custom', label: 'Custom' }` to the `sounds` array. The control now 
 
 ### Inline parameter panel
 
-Rendered directly inside the Audio section card, below the segmented control, when `$settingsStore.clickSound === 'custom'`. Uses CSS `{#if}` — no animation required.
+Rendered directly inside the Audio section card, below the segmented control, when `$settingsStore.clickSound === 'custom'`. Uses `{#if}` — no animation required.
 
 **Controls (top to bottom):**
 
@@ -126,7 +163,10 @@ Rendered directly inside the Audio section card, below the segmented control, wh
 
 Each slider change calls `settingsStore.setCustomSound({ ...current, [field]: value })`.
 
-The existing **Preview** button already calls `previewClick($settingsStore.clickSound)` — it gains the custom params by passing `$settingsStore.customSound` as the second argument.
+The existing **Preview** button passes `$settingsStore.customSound` as the second argument:
+```ts
+previewClick($settingsStore.clickSound, $settingsStore.customSound)
+```
 
 ### Note
 
@@ -134,15 +174,19 @@ Pitch slider is disabled (not hidden) when source is Noise, to preserve its posi
 
 ---
 
-## Wiring in PerformanceScreen
+## Wiring in `src/stores/performance.ts`
 
-In the `$effect` that reacts to `$settingsStore.clickSound`, also call:
+The metronome is owned by `performance.ts`, not a component. Wiring happens via store subscriptions, not `$effect`. Add a subscription (or extend the existing `clickSound` subscriber) to call:
 
 ```ts
-metronome.setCustomSoundParams($settingsStore.customSound)
+metronome.setCustomSoundParams(settingsStore.customSound)
 ```
 
-A separate `$effect` watching `$settingsStore.customSound` ensures live parameter updates propagate to the running metronome (useful if settings are somehow accessible mid-performance, or for future use).
+whenever `settingsStore.clickSound` changes to `'custom'`, and also whenever `settingsStore.customSound` changes (to propagate live slider adjustments).
+
+Svelte store `subscribe` calls fire synchronously with the current value on first subscription, so subscribing before the metronome is first used is sufficient to handle the initial sync on app load — no separate startup call is needed. The subscription must be established before `metronome.start()` is ever called.
+
+`createNoopMetronome()` must implement `setCustomSoundParams` as a no-op to satisfy the `Metronome` interface.
 
 ---
 
@@ -151,19 +195,20 @@ A separate `$effect` watching `$settingsStore.customSound` ensures live paramete
 | File | Change |
 |------|--------|
 | `src/lib/types.ts` | Add `ClickSoundSource`, `CustomSoundParams`, extend `ClickSound`, extend `AppSettings`, add `DEFAULT_CUSTOM_SOUND` |
-| `src/lib/metronome.ts` | Update `buildClickBuffer`, `previewClick`, add `setCustomSoundParams` to interface and implementation |
-| `src/lib/storage.ts` | Add `customSound` to `DEFAULT_SETTINGS`, ensure migration on load |
+| `src/lib/metronome.ts` | Update `buildClickBuffer` (unit conversion + exp decay for all sources), `previewClick`, add `setCustomSoundParams` to interface and implementation |
+| `src/lib/storage.ts` | Add `customSound` to `DEFAULT_SETTINGS`; deep-merge `customSound` in `loadSettings`; spread `customSound` in `cloneDefaultSettings` |
 | `src/stores/settings.ts` | Add `customSound` to state, add `setCustomSound` method |
-| `src/components/Settings.svelte` | Add Custom to sound list, add inline parameter panel |
-| `src/stores/performance.ts` | Wire `setCustomSoundParams` into metronome reactivity (if metronome wiring lives here) |
+| `src/components/Settings.svelte` | Add Custom to sound list, add inline parameter panel, pass `customSound` to `previewClick` |
+| `src/stores/performance.ts` | Add `setCustomSoundParams` no-op to `createNoopMetronome`; subscribe to `customSound` changes to propagate to live metronome |
 
 ---
 
 ## Testing
 
-- Unit tests for `buildClickBuffer` covering all three custom sources.
-- Unit test: `setCustomSoundParams` invalidates the buffer cache.
+- Unit tests for `buildClickBuffer` covering all three custom sources (verify buffer length matches `duration / 1000 * sampleRate`).
+- Unit test: `setCustomSoundParams` invalidates the buffer cache (clickBuffer becomes null).
 - Unit test: `previewClick('custom', params)` does not throw.
-- Storage test: loading legacy settings (no `customSound`) returns default params.
+- Storage test: loading legacy settings (no `customSound`) returns full default params.
+- Storage test: loading partial `customSound` (missing one key) fills missing key from defaults.
 - Manual: switch to Custom, move sliders, hit Preview — hear the change immediately.
 - Manual: switch away and back to Custom — previous params are restored.
