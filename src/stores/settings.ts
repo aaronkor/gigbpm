@@ -55,6 +55,10 @@ function createSettingsStore() {
       return get(store).clickSound
     },
 
+    get clickChannel() {
+      return get(store).clickChannel
+    },
+
     get performanceMode() {
       return get(store).performanceMode
     },
@@ -65,10 +69,6 @@ function createSettingsStore() {
 
     get customSound() {
       return get(store).customSound
-    },
-
-    get clickChannel() {
-      return get(store).clickChannel
     },
 
     setAnnounceSongName(value: boolean): void {
