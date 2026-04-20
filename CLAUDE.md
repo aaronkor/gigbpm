@@ -27,7 +27,7 @@ Full spec: `docs/superpowers/specs/2026-04-16-gigbpm-design.md`
 
 ## Commands
 
-Always run 'npm push patch' before pushing to remote.
+Always run 'npm version patch' before pushing to remote.
 
 ## Architecture
 
