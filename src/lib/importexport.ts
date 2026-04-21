@@ -10,8 +10,6 @@ export interface ExportPayload {
   }
 }
 
-type ShareResult = 'shared' | 'unsupported' | 'failed'
-
 export function validateImport(data: unknown): Setlist {
   if (!data || typeof data !== 'object') {
     throw new Error('Not an object')
@@ -102,60 +100,52 @@ export function exportSetlist(setlist: Setlist): void {
   URL.revokeObjectURL(url)
 }
 
-async function shareFile(file: File, title: string): Promise<ShareResult> {
-  const files = [file]
-
-  if (typeof navigator.share !== 'function' || !navigator.canShare?.({ files })) {
-    return 'unsupported'
-  }
-
+async function shareNative(data: ShareData): Promise<boolean> {
   try {
-    await navigator.share({ files, title })
-    return 'shared'
+    await navigator.share(data)
+    return true
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      return 'shared'
+      return true
     }
 
-    return 'failed'
-  }
-}
-
-async function shareText(title: string, text: string): Promise<ShareResult> {
-  if (typeof navigator.share !== 'function') {
-    return 'unsupported'
-  }
-
-  try {
-    await navigator.share({ title, text })
-    return 'shared'
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      return 'shared'
-    }
-
-    return 'failed'
+    return false
   }
 }
 
 export async function shareSetlist(setlist: Setlist): Promise<void> {
   const json = buildExportJson(setlist)
-  const jsonFile = new File([json], buildFilename(setlist, 'json'), { type: 'application/json' })
-  const jsonShareResult = await shareFile(jsonFile, setlist.name)
 
-  if (jsonShareResult === 'shared') {
+  if (typeof navigator.share !== 'function') {
+    exportSetlist(setlist)
     return
   }
 
-  if (jsonShareResult === 'unsupported') {
-    const textFile = new File([json], buildFilename(setlist, 'txt'), { type: 'text/plain' })
+  const jsonFile = new File([json], buildFilename(setlist, 'json'), { type: 'application/json' })
+  const jsonFiles = [jsonFile]
 
-    if ((await shareFile(textFile, setlist.name)) === 'shared') {
+  if (navigator.canShare?.({ files: jsonFiles })) {
+    if (await shareNative({ files: jsonFiles, title: setlist.name })) {
       return
     }
+
+    exportSetlist(setlist)
+    return
   }
 
-  if (await shareText(setlist.name, json) === 'shared') {
+  const textFile = new File([json], buildFilename(setlist, 'txt'), { type: 'text/plain' })
+  const textFiles = [textFile]
+
+  if (navigator.canShare?.({ files: textFiles })) {
+    if (await shareNative({ files: textFiles, title: setlist.name })) {
+      return
+    }
+
+    exportSetlist(setlist)
+    return
+  }
+
+  if (await shareNative({ title: setlist.name, text: json })) {
     return
   }
 

@@ -185,6 +185,25 @@ describe('shareSetlist', () => {
     })
   })
 
+  it('calls text share before yielding when file sharing is unsupported', async () => {
+    const shareMock = vi.fn().mockResolvedValue(undefined)
+
+    Object.defineProperty(globalThis.navigator, 'canShare', {
+      value: vi.fn().mockReturnValue(false),
+      configurable: true,
+    })
+    Object.defineProperty(globalThis.navigator, 'share', {
+      value: shareMock,
+      configurable: true,
+    })
+
+    const sharePromise = shareSetlist(setlist)
+
+    expect(shareMock).toHaveBeenCalledOnce()
+
+    await sharePromise
+  })
+
   it('falls back to export when native sharing is not supported', async () => {
     const shareMock = vi.fn()
     const createObjectUrlMock = vi.fn(() => 'blob:mock')
@@ -246,7 +265,7 @@ describe('shareSetlist', () => {
     await expect(shareSetlist(setlist)).resolves.toBeUndefined()
   })
 
-  it('falls back to export when native file and text sharing reject', async () => {
+  it('falls back to export when native file sharing rejects', async () => {
     const shareError = new Error('Network failure')
     const createObjectUrlMock = vi.fn(() => 'blob:mock')
     const revokeObjectUrlMock = vi.fn()
@@ -286,7 +305,7 @@ describe('shareSetlist', () => {
     })
 
     await expect(shareSetlist(setlist)).resolves.toBeUndefined()
-    expect(globalThis.navigator.share).toHaveBeenCalledTimes(2)
+    expect(globalThis.navigator.share).toHaveBeenCalledOnce()
     expect(clickMock).toHaveBeenCalledOnce()
     expect(createObjectUrlMock).toHaveBeenCalledOnce()
   })
