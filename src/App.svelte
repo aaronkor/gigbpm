@@ -14,11 +14,14 @@
     userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
   }
 
-  type Screen =
+  type PrimaryScreen =
     | { name: 'setlist-list' }
     | { name: 'setlist-editor'; setlist: Setlist }
     | { name: 'performance' }
-    | { name: 'settings' }
+
+  type Screen =
+    | PrimaryScreen
+    | { name: 'settings'; returnTo: PrimaryScreen }
 
   let screen = $state<Screen>({ name: 'setlist-list' })
   let installPrompt = $state<BeforeInstallPromptEvent | null>(null)
@@ -80,6 +83,26 @@
   function exitPerformance(): void {
     screen = { name: 'setlist-list' }
   }
+
+  function openSettings(returnTo: PrimaryScreen): void {
+    screen = { name: 'settings', returnTo }
+  }
+
+  function openSettingsFromCurrentScreen(): void {
+    if (screen.name === 'settings') {
+      return
+    }
+
+    openSettings(screen)
+  }
+
+  function closeSettings(): void {
+    if (screen.name !== 'settings') {
+      return
+    }
+
+    screen = screen.returnTo
+  }
 </script>
 
 <div class="app">
@@ -88,9 +111,7 @@
       onOpenSetlist={(setlist) => {
         screen = { name: 'setlist-editor', setlist }
       }}
-      onOpenSettings={() => {
-        screen = { name: 'settings' }
-      }}
+      onOpenSettings={openSettingsFromCurrentScreen}
     />
   {:else if screen.name === 'setlist-editor'}
     <SetlistEditor
@@ -101,14 +122,16 @@
       onPlay={() => {
         screen = { name: 'performance' }
       }}
+      onOpenSettings={openSettingsFromCurrentScreen}
     />
   {:else if screen.name === 'performance'}
-    <PerformanceScreen onExit={exitPerformance} />
+    <PerformanceScreen
+      onExit={exitPerformance}
+      onOpenSettings={openSettingsFromCurrentScreen}
+    />
   {:else}
     <Settings
-      onBack={() => {
-        screen = { name: 'setlist-list' }
-      }}
+      onBack={closeSettings}
       installPromptEvent={installPrompt}
     />
   {/if}

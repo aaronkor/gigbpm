@@ -9,7 +9,10 @@
   import { performanceStore } from '../stores/performance'
   import { settingsStore } from '../stores/settings'
 
-  let { onExit }: { onExit: () => void } = $props()
+  let { onExit, onOpenSettings }: {
+    onExit: () => void
+    onOpenSettings: () => void
+  } = $props()
 
   let beatActive = $state(false)
   let dismissedDndReminder = $state(false)
@@ -236,7 +239,10 @@
       <AppLogo size="34px" />
     </div>
 
-    <button class="exit-btn" onclick={handleExit} aria-label="Exit performance">✕</button>
+    <div class="top-controls">
+      <button class="exit-btn" onclick={handleExit} aria-label="Exit performance">✕</button>
+      <button class="settings-btn" onclick={onOpenSettings} aria-label="Settings">⚙</button>
+    </div>
   </div>
 
   {#if $settingsStore.performanceMode && !dismissedDndReminder}
@@ -348,7 +354,7 @@
   .top-row {
     width: 100%;
     display: grid;
-    grid-template-columns: minmax(32px, auto) 1fr minmax(32px, auto);
+    grid-template-columns: minmax(44px, auto) 1fr minmax(92px, auto);
     align-items: start;
     gap: 12px;
   }
@@ -364,22 +370,38 @@
     color: var(--text);
   }
 
-  .exit-btn {
+  .top-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+
+  .exit-btn,
+  .settings-btn {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: none;
     color: var(--text-muted);
     font-size: clamp(18px, 5vw, 20px);
     cursor: pointer;
-    padding: 4px;
   }
 
   .tts-btn {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: none;
     color: var(--text-muted);
     font-size: clamp(18px, 5vw, 20px);
     cursor: pointer;
-    padding: 4px;
     opacity: 0.25;
   }
 

@@ -14,10 +14,11 @@
     bpm: number
   }
 
-  let { setlist, onBack, onPlay }: {
+  let { setlist, onBack, onPlay, onOpenSettings }: {
     setlist: Setlist
     onBack: () => void
     onPlay: () => void
+    onOpenSettings: () => void
   } = $props()
 
   let current = $derived($setlistsStore.all.find((entry) => entry.id === setlist.id) ?? setlist)
@@ -157,6 +158,7 @@
       <button class="name-btn" onclick={startEditName}>{current.name}</button>
     {/if}
     <button class="play-btn" onclick={handlePlay} disabled={current.songs.length === 0}>▶ Play</button>
+    <button class="settings-btn" onclick={onOpenSettings} aria-label="Settings">⚙</button>
   </header>
 
   <div
@@ -242,6 +244,20 @@
   .play-btn:disabled {
     color: var(--text-muted);
     cursor: default;
+  }
+
+  .settings-btn {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 20px;
+    cursor: pointer;
   }
 
   .name-btn {
