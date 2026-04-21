@@ -155,6 +155,8 @@
     bottom: 0;
     left: 0;
     right: 0;
+    width: 100%;
+    max-width: 100vw;
     z-index: 11;
     background: var(--surface);
     border-radius: 20px 20px 0 0;
@@ -163,6 +165,7 @@
     flex-direction: column;
     gap: 14px;
     border-top: 1px solid var(--border);
+    overflow-x: hidden;
   }
 
   .handle {
@@ -182,6 +185,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
   }
 
   label {
@@ -206,10 +210,12 @@
     display: flex;
     gap: 8px;
     align-items: center;
+    min-width: 0;
   }
 
   .bpm-row input {
     flex: 1;
+    min-width: 0;
     text-align: center;
     font-size: 18px;
     font-weight: 700;
@@ -244,6 +250,7 @@
     flex-direction: column;
     align-items: center;
     gap: 3px;
+    min-width: 0;
   }
 
   .tap-btn.active {
@@ -257,11 +264,14 @@
     font-weight: 400;
     color: var(--indigo);
     opacity: 0.7;
+    text-align: center;
+    overflow-wrap: anywhere;
   }
 
   .actions {
     display: flex;
     gap: 8px;
+    min-width: 0;
   }
 
   .btn-cancel {
@@ -269,6 +279,7 @@
     border: 1px solid var(--border);
     color: var(--text);
     flex: 1;
+    min-width: 0;
     padding: 13px;
     border-radius: var(--radius-sm);
     font-size: 14px;
@@ -281,6 +292,7 @@
     color: #000;
     font-weight: 700;
     flex: 2;
+    min-width: 0;
     padding: 13px;
     border-radius: var(--radius-sm);
     font-size: 14px;

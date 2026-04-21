@@ -137,10 +137,12 @@
 
 <style>
   .app {
-    min-height: 100%;
+    height: 100%;
+    max-height: 100%;
     display: flex;
     flex-direction: column;
     min-width: 0;
+    overflow: hidden;
   }
 
   .install-banner {
