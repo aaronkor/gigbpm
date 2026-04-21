@@ -4,6 +4,7 @@
   import AppLogo from './AppLogo.svelte'
   import iconNext from '../assets/icon-next.svg?raw'
   import iconPrev from '../assets/icon-prev.svg?raw'
+  import { BPM_MAX, BPM_MIN } from '../lib/types'
   import { announce, isTTSAvailable } from '../lib/tts'
   import { performanceStore } from '../stores/performance'
   import { settingsStore } from '../stores/settings'
@@ -13,8 +14,15 @@
   let beatActive = $state(false)
   let dismissedDndReminder = $state(false)
   let beatTimer: ReturnType<typeof setTimeout> | null = null
+  let tempoEditorOpen = $state(false)
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null
+  let suppressNextRingClick = false
+  let bpmRingElement = $state<HTMLButtonElement | null>(null)
+  let tempoEditorElement = $state<HTMLDivElement | null>(null)
+  let lastSongId = $state<string | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let wakeLock: any = null
+  const TEMPO_EDITOR_LONG_PRESS_MS = 500
 
   let nextSong = $derived(
     $performanceStore.setlist?.songs[$performanceStore.songIndex + 1] ?? null,
@@ -50,8 +58,11 @@
     })
 
     const mediaNavigator = navigator as MediaNavigator
-    mediaNavigator.mediaSession?.setActionHandler('previoustrack', () => performanceStore.prev())
-    mediaNavigator.mediaSession?.setActionHandler('nexttrack', () => performanceStore.next())
+    mediaNavigator.mediaSession?.setActionHandler('previoustrack', handlePrev)
+    mediaNavigator.mediaSession?.setActionHandler('nexttrack', handleNext)
+
+    document.addEventListener('pointerdown', handleDocumentPointerDown)
+    document.addEventListener('keydown', handleDocumentKeydown)
   })
 
   onDestroy(() => {
@@ -59,11 +70,14 @@
       clearTimeout(beatTimer)
     }
 
+    clearLongPressTimer()
     performanceStore.metronome.onBeat(() => {})
 
     const mediaNavigator = navigator as MediaNavigator
     mediaNavigator.mediaSession?.setActionHandler('previoustrack', null)
     mediaNavigator.mediaSession?.setActionHandler('nexttrack', null)
+    document.removeEventListener('pointerdown', handleDocumentPointerDown)
+    document.removeEventListener('keydown', handleDocumentKeydown)
   })
 
   function handleExit(): void {
@@ -72,6 +86,11 @@
   }
 
   function handlePauseResume(): void {
+    if (suppressNextRingClick) {
+      suppressNextRingClick = false
+      return
+    }
+
     if ($performanceStore.running) {
       performanceStore.pause()
       return
@@ -89,6 +108,63 @@
       const song = $performanceStore.currentSong
       if (song) announce(song.name)
     }
+  }
+
+  function closeTempoEditor(): void {
+    tempoEditorOpen = false
+  }
+
+  function clearLongPressTimer(): void {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer)
+      longPressTimer = null
+    }
+  }
+
+  function handleBpmPointerDown(event: PointerEvent): void {
+    if (!$performanceStore.currentSong || (event.pointerType === 'mouse' && event.button !== 0)) {
+      return
+    }
+
+    clearLongPressTimer()
+    longPressTimer = setTimeout(() => {
+      tempoEditorOpen = true
+      suppressNextRingClick = true
+      longPressTimer = null
+    }, TEMPO_EDITOR_LONG_PRESS_MS)
+  }
+
+  function handleDocumentPointerDown(event: PointerEvent): void {
+    if (!tempoEditorOpen) {
+      return
+    }
+
+    const target = event.target as Node | null
+
+    if (
+      target &&
+      (tempoEditorElement?.contains(target) || bpmRingElement?.contains(target))
+    ) {
+      return
+    }
+
+    closeTempoEditor()
+  }
+
+  function handleDocumentKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      closeTempoEditor()
+    }
+  }
+
+  function handlePrev(): void {
+    closeTempoEditor()
+    performanceStore.prev()
+  }
+
+  function handleNext(): void {
+    closeTempoEditor()
+    performanceStore.next()
   }
 
   $effect(() => {
@@ -123,6 +199,20 @@
       const releaseResult = wakeLock?.release?.()
       void releaseResult?.catch(() => {})
       wakeLock = null
+    }
+  })
+
+  $effect(() => {
+    const songId = $performanceStore.currentSong?.id ?? null
+
+    if (lastSongId === null) {
+      lastSongId = songId
+      return
+    }
+
+    if (songId !== lastSongId) {
+      closeTempoEditor()
+      lastSongId = songId
     }
   })
 </script>
@@ -184,25 +274,54 @@
     </div>
   </div>
 
-  <button
-    class="bpm-ring"
-    class:on-beat={beatActive && $performanceStore.running}
-    class:is-paused={$performanceStore.paused}
-    onclick={handlePauseResume}
-    aria-label={$performanceStore.running ? 'Pause' : 'Resume'}
-  >
-    <div class="bpm-number">{$performanceStore.currentSong?.bpm ?? '--'}</div>
-    <div class="bpm-label">BPM</div>
-    <div class="bpm-hint">{$performanceStore.running ? '❚❚' : '▶'}</div>
-  </button>
+  <div class="bpm-area">
+    <button
+      bind:this={bpmRingElement}
+      class="bpm-ring"
+      class:on-beat={beatActive && $performanceStore.running}
+      class:is-paused={$performanceStore.paused}
+      onpointerdown={handleBpmPointerDown}
+      onpointerup={clearLongPressTimer}
+      onpointercancel={clearLongPressTimer}
+      onpointerleave={clearLongPressTimer}
+      oncontextmenu={(event) => event.preventDefault()}
+      onclick={handlePauseResume}
+      aria-label={$performanceStore.running ? 'Pause' : 'Resume'}
+    >
+      <div class="bpm-number">{$performanceStore.currentSong?.bpm ?? '--'}</div>
+      <div class="bpm-label">BPM</div>
+      <div class="bpm-hint">{$performanceStore.running ? '❚❚' : '▶'}</div>
+    </button>
+
+    {#if tempoEditorOpen && $performanceStore.currentSong}
+      <div bind:this={tempoEditorElement} class="tempo-editor" role="group" aria-label="Tempo editor">
+        <button
+          class="tempo-step"
+          onclick={() => performanceStore.adjustCurrentSongBpm(-1)}
+          disabled={$performanceStore.currentSong.bpm <= BPM_MIN}
+          aria-label="Decrease tempo"
+        >
+          -
+        </button>
+        <button
+          class="tempo-step"
+          onclick={() => performanceStore.adjustCurrentSongBpm(1)}
+          disabled={$performanceStore.currentSong.bpm >= BPM_MAX}
+          aria-label="Increase tempo"
+        >
+          +
+        </button>
+      </div>
+    {/if}
+  </div>
 
   <div class="bottom-row">
-    <button class="prev-btn" onclick={() => performanceStore.prev()} aria-label="Previous song">
+    <button class="prev-btn" onclick={handlePrev} aria-label="Previous song">
       <span class="btn-icon" aria-hidden="true">{@html iconPrev}</span>
       <span class="btn-label">PREV</span>
     </button>
 
-    <button class="next-btn" onclick={() => performanceStore.next()} aria-label="Next song">
+    <button class="next-btn" onclick={handleNext} aria-label="Next song">
       <span class="btn-icon" aria-hidden="true">{@html iconNext}</span>
       <span class="btn-label">NEXT</span>
     </button>
@@ -349,6 +468,14 @@
     overflow-wrap: anywhere;
   }
 
+  .bpm-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin-block: auto;
+  }
+
   .bpm-ring {
     width: min(58vw, 37dvh, 214px);
     height: min(58vw, 37dvh, 214px);
@@ -362,12 +489,15 @@
     transition:
       border-color 0.05s ease,
       box-shadow 0.05s ease;
-    margin-block: auto;
     cursor: pointer;
     /* reset button styles */
     padding: 0;
     appearance: none;
     -webkit-appearance: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
   }
 
   .bpm-ring:active {
@@ -395,6 +525,8 @@
     font-family: monospace;
     line-height: 1;
     color: var(--text);
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .bpm-label {
@@ -410,6 +542,33 @@
     opacity: 0.45;
     margin-top: 5px;
     letter-spacing: 1px;
+  }
+
+  .tempo-editor {
+    min-height: 48px;
+    display: grid;
+    grid-template-columns: 56px 56px;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .tempo-step {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .tempo-step:disabled {
+    color: var(--text-muted);
+    opacity: 0.35;
+    cursor: default;
   }
 
   .bottom-row {

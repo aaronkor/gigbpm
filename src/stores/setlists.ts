@@ -2,7 +2,7 @@ import { get, writable } from 'svelte/store'
 
 import { generateId } from '../lib/id'
 import { loadSetlists, saveSetlists } from '../lib/storage'
-import type { Setlist, Song } from '../lib/types'
+import { BPM_MAX, BPM_MIN, type Setlist, type Song } from '../lib/types'
 
 interface SetlistsState {
   all: Setlist[]
@@ -21,6 +21,10 @@ function createSetlistsStore() {
       persist(all)
       return { all }
     })
+  }
+
+  function clampBpm(bpm: number): number {
+    return Math.min(BPM_MAX, Math.max(BPM_MIN, bpm))
   }
 
   return {
@@ -68,6 +72,23 @@ function createSetlistsStore() {
                 ...setlist,
                 songs: setlist.songs.map((existingSong) =>
                   existingSong.id === song.id ? song : existingSong,
+                ),
+              }
+            : setlist,
+        ),
+      )
+    },
+
+    updateSongBpm(setlistId: string, songId: string, bpm: number): void {
+      const nextBpm = clampBpm(bpm)
+
+      updateAll((all) =>
+        all.map((setlist) =>
+          setlist.id === setlistId
+            ? {
+                ...setlist,
+                songs: setlist.songs.map((song) =>
+                  song.id === songId ? { ...song, bpm: nextBpm } : song,
                 ),
               }
             : setlist,

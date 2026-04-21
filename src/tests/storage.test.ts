@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { loadSettings, loadSetlists, saveSettings, saveSetlists } from '../lib/storage'
-import { DEFAULT_SETTINGS, type AppSettings, type Setlist } from '../lib/types'
+import { BPM_MAX, BPM_MIN, DEFAULT_SETTINGS, type AppSettings, type Setlist } from '../lib/types'
 import { settingsStore } from '../stores/settings'
+import { setlistsStore } from '../stores/setlists'
 
 const mockSetlist: Setlist = {
   id: 'abc',
@@ -36,6 +37,42 @@ describe('saveSetlists', () => {
     expect(JSON.parse(localStorage.getItem('gigbpm_setlists') ?? 'null')).toEqual([
       mockSetlist,
     ])
+  })
+})
+
+describe('setlistsStore.updateSongBpm', () => {
+  beforeEach(() => {
+    setlistsStore.all.forEach((setlist) => setlistsStore.remove(setlist.id))
+  })
+
+  it('updates only the matching song BPM and persists the setlist', () => {
+    const setlist: Setlist = {
+      id: 'sl1',
+      name: 'Live Set',
+      songs: [
+        { id: 's1', name: 'Song One', bpm: 120 },
+        { id: 's2', name: 'Song Two', bpm: 132 },
+      ],
+    }
+
+    setlistsStore.importSetlist(setlist)
+    setlistsStore.updateSongBpm('sl1', 's1', 121)
+
+    expect(setlistsStore.all[0].songs).toEqual([
+      { id: 's1', name: 'Song One', bpm: 121 },
+      { id: 's2', name: 'Song Two', bpm: 132 },
+    ])
+    expect(loadSetlists()[0].songs[0].bpm).toBe(121)
+  })
+
+  it('clamps persisted BPM values to the supported range', () => {
+    setlistsStore.importSetlist(mockSetlist)
+
+    setlistsStore.updateSongBpm(mockSetlist.id, 's1', BPM_MAX + 1)
+    expect(setlistsStore.all[0].songs[0].bpm).toBe(BPM_MAX)
+
+    setlistsStore.updateSongBpm(mockSetlist.id, 's1', BPM_MIN - 1)
+    expect(setlistsStore.all[0].songs[0].bpm).toBe(BPM_MIN)
   })
 })
 

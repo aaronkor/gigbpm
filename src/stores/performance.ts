@@ -3,8 +3,17 @@ import { get, writable } from 'svelte/store'
 import { createMetronome, type Metronome } from '../lib/metronome'
 import { createMidiController, type MidiController } from '../lib/midi'
 import { announce, isTTSAvailable } from '../lib/tts'
-import type { ClickChannel, ClickSound, CustomSoundParams, Setlist, Song } from '../lib/types'
+import {
+  BPM_MAX,
+  BPM_MIN,
+  type ClickChannel,
+  type ClickSound,
+  type CustomSoundParams,
+  type Setlist,
+  type Song,
+} from '../lib/types'
 import { settingsStore } from './settings'
+import { setlistsStore } from './setlists'
 
 interface PerformanceState {
   setlist: Setlist | null
@@ -97,6 +106,10 @@ function createState(
     totalSongs: setlist?.songs.length ?? 0,
     metronome,
   }
+}
+
+function clampBpm(bpm: number): number {
+  return Math.min(BPM_MAX, Math.max(BPM_MIN, bpm))
 }
 
 function createPerformanceStore() {
@@ -242,6 +255,32 @@ function createPerformanceStore() {
       metronome.setBpm(prevSong.bpm)
       maybeAnnounce(prevSong)
       store.set(createState(state.setlist, prevIndex, state.running, state.paused))
+    },
+
+    adjustCurrentSongBpm(delta: number): void {
+      const state = get(store)
+
+      if (!state.setlist || !state.currentSong) {
+        return
+      }
+
+      const nextBpm = clampBpm(state.currentSong.bpm + delta)
+
+      if (nextBpm === state.currentSong.bpm) {
+        return
+      }
+
+      const updatedSong = { ...state.currentSong, bpm: nextBpm }
+      const updatedSetlist = {
+        ...state.setlist,
+        songs: state.setlist.songs.map((song) =>
+          song.id === updatedSong.id ? updatedSong : song,
+        ),
+      }
+
+      metronome.setBpm(nextBpm)
+      setlistsStore.updateSongBpm(updatedSetlist.id, updatedSong.id, nextBpm)
+      store.set(createState(updatedSetlist, state.songIndex, state.running, state.paused))
     },
   }
 }
