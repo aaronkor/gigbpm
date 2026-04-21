@@ -92,7 +92,6 @@ describe('shareSetlist', () => {
     name: 'My Gig',
     songs: [{ id: 's1', name: 'Track', bpm: 120 }],
   }
-  type FileShareData = { files: File[] }
 
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -103,69 +102,9 @@ describe('shareSetlist', () => {
     vi.unstubAllGlobals()
   })
 
-  it('calls navigator.share when canShare returns true', async () => {
-    const shareMock = vi.fn().mockResolvedValue(undefined)
-    const canShareMock = vi.fn().mockReturnValue(true)
-
-    Object.defineProperty(globalThis.navigator, 'canShare', {
-      value: canShareMock,
-      configurable: true,
-    })
-    Object.defineProperty(globalThis.navigator, 'share', {
-      value: shareMock,
-      configurable: true,
-    })
-
-    await shareSetlist(setlist)
-
-    expect(shareMock).toHaveBeenCalledOnce()
-    const call = shareMock.mock.calls[0][0] as { files: File[]; title: string }
-    expect(call.title).toBe('My Gig')
-    expect(call.files[0].name).toMatch(/setlist-my-gig\.json$/)
-    expect(call.files[0].type).toBe('application/json')
-    expect(canShareMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        files: expect.any(Array),
-      }),
-    )
-  })
-
-  it('shares a text file when JSON files are unsupported', async () => {
-    const shareMock = vi.fn().mockResolvedValue(undefined)
-    const canShareMock = vi.fn().mockImplementation((data: FileShareData) => {
-      return data.files[0].type === 'text/plain'
-    })
-
-    Object.defineProperty(globalThis.navigator, 'canShare', {
-      value: canShareMock,
-      configurable: true,
-    })
-    Object.defineProperty(globalThis.navigator, 'share', {
-      value: shareMock,
-      configurable: true,
-    })
-
-    await shareSetlist(setlist)
-
-    expect(canShareMock).toHaveBeenCalledTimes(2)
-    expect(canShareMock.mock.calls[0][0].files[0].name).toBe('setlist-my-gig.json')
-    expect(canShareMock.mock.calls[0][0].files[0].type).toBe('application/json')
-    expect(canShareMock.mock.calls[1][0].files[0].name).toBe('setlist-my-gig.txt')
-    expect(canShareMock.mock.calls[1][0].files[0].type).toBe('text/plain')
-    expect(shareMock).toHaveBeenCalledOnce()
-    const call = shareMock.mock.calls[0][0] as { files: File[]; title: string }
-    expect(call.title).toBe('My Gig')
-    expect(call.files[0].name).toBe('setlist-my-gig.txt')
-    expect(call.files[0].type).toBe('text/plain')
-  })
-
-  it('shares text when file sharing is not supported', async () => {
+  it('calls navigator.share with title and JSON text', async () => {
     const shareMock = vi.fn().mockResolvedValue(undefined)
 
-    Object.defineProperty(globalThis.navigator, 'canShare', {
-      value: vi.fn().mockReturnValue(false),
-      configurable: true,
-    })
     Object.defineProperty(globalThis.navigator, 'share', {
       value: shareMock,
       configurable: true,
@@ -185,13 +124,9 @@ describe('shareSetlist', () => {
     })
   })
 
-  it('calls text share before yielding when file sharing is unsupported', async () => {
+  it('calls navigator.share before yielding (preserves user activation)', async () => {
     const shareMock = vi.fn().mockResolvedValue(undefined)
 
-    Object.defineProperty(globalThis.navigator, 'canShare', {
-      value: vi.fn().mockReturnValue(false),
-      configurable: true,
-    })
     Object.defineProperty(globalThis.navigator, 'share', {
       value: shareMock,
       configurable: true,
@@ -204,8 +139,7 @@ describe('shareSetlist', () => {
     await sharePromise
   })
 
-  it('falls back to export when native sharing is not supported', async () => {
-    const shareMock = vi.fn()
+  it('falls back to download when navigator.share is unavailable', async () => {
     const createObjectUrlMock = vi.fn(() => 'blob:mock')
     const revokeObjectUrlMock = vi.fn()
     const clickMock = vi.fn()
@@ -222,22 +156,13 @@ describe('shareSetlist', () => {
 
     createElementSpy.mockImplementation((tagName: string) => {
       if (tagName === 'a') {
-        return {
-          href: '',
-          download: '',
-          click: clickMock,
-        } as unknown as HTMLAnchorElement
+        return { href: '', download: '', click: clickMock } as unknown as HTMLAnchorElement
       }
-
       return originalCreateElement(tagName)
     })
     appendSpy.mockImplementation((node) => node)
     removeSpy.mockImplementation((node) => node)
 
-    Object.defineProperty(globalThis.navigator, 'canShare', {
-      value: vi.fn().mockReturnValue(false),
-      configurable: true,
-    })
     Object.defineProperty(globalThis.navigator, 'share', {
       value: undefined,
       configurable: true,
@@ -245,7 +170,6 @@ describe('shareSetlist', () => {
 
     await shareSetlist(setlist)
 
-    expect(shareMock).not.toHaveBeenCalled()
     expect(createObjectUrlMock).toHaveBeenCalledOnce()
     expect(clickMock).toHaveBeenCalledOnce()
   })
@@ -253,10 +177,6 @@ describe('shareSetlist', () => {
   it('swallows AbortError silently', async () => {
     const abortError = new DOMException('Aborted', 'AbortError')
 
-    Object.defineProperty(globalThis.navigator, 'canShare', {
-      value: vi.fn().mockReturnValue(true),
-      configurable: true,
-    })
     Object.defineProperty(globalThis.navigator, 'share', {
       value: vi.fn().mockRejectedValue(abortError),
       configurable: true,
@@ -265,8 +185,8 @@ describe('shareSetlist', () => {
     await expect(shareSetlist(setlist)).resolves.toBeUndefined()
   })
 
-  it('falls back to export when native file sharing rejects', async () => {
-    const shareError = new Error('Network failure')
+  it('falls back to download when navigator.share rejects', async () => {
+    const shareError = new Error('NotAllowedError')
     const createObjectUrlMock = vi.fn(() => 'blob:mock')
     const revokeObjectUrlMock = vi.fn()
     const clickMock = vi.fn()
@@ -283,30 +203,20 @@ describe('shareSetlist', () => {
 
     createElementSpy.mockImplementation((tagName: string) => {
       if (tagName === 'a') {
-        return {
-          href: '',
-          download: '',
-          click: clickMock,
-        } as unknown as HTMLAnchorElement
+        return { href: '', download: '', click: clickMock } as unknown as HTMLAnchorElement
       }
-
       return originalCreateElement(tagName)
     })
     appendSpy.mockImplementation((node) => node)
     removeSpy.mockImplementation((node) => node)
 
-    Object.defineProperty(globalThis.navigator, 'canShare', {
-      value: vi.fn().mockReturnValue(true),
-      configurable: true,
-    })
     Object.defineProperty(globalThis.navigator, 'share', {
       value: vi.fn().mockRejectedValue(shareError),
       configurable: true,
     })
 
     await expect(shareSetlist(setlist)).resolves.toBeUndefined()
-    // cascades through json file → txt file → text-only before downloading
-    expect(globalThis.navigator.share).toHaveBeenCalledTimes(3)
+    expect(globalThis.navigator.share).toHaveBeenCalledOnce()
     expect(clickMock).toHaveBeenCalledOnce()
     expect(createObjectUrlMock).toHaveBeenCalledOnce()
   })

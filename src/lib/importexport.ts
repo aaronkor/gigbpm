@@ -100,26 +100,6 @@ export function exportSetlist(setlist: Setlist): void {
   URL.revokeObjectURL(url)
 }
 
-type ShareResult = 'ok' | 'cancelled' | 'rejected'
-
-async function shareNative(data: ShareData, log: (msg: string) => void): Promise<ShareResult> {
-  try {
-    await navigator.share(data)
-    log('share: succeeded')
-    return 'ok'
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      log('share: user cancelled (AbortError)')
-      return 'cancelled'
-    }
-
-    const name = error instanceof Error ? error.name : String(error)
-    const message = error instanceof Error ? error.message : ''
-    log(`share: rejected — ${name}: ${message}`)
-    return 'rejected'
-  }
-}
-
 export async function shareSetlist(setlist: Setlist, log: (msg: string) => void = () => {}): Promise<void> {
   const json = buildExportJson(setlist)
 
@@ -131,38 +111,24 @@ export async function shareSetlist(setlist: Setlist, log: (msg: string) => void 
     return
   }
 
-  log(`navigator.canShare type: ${typeof navigator.canShare}`)
+  // canShare({ files }) returns true on Android Chrome but share() immediately
+  // throws NotAllowedError (no app handles the type), which consumes transient
+  // activation and makes every subsequent share() call fail with "user gesture"
+  // errors. Use text-only share as the single shot — it works on all platforms
+  // that support the Web Share API.
+  log('path: text-only share')
+  try {
+    await navigator.share({ title: setlist.name, text: json })
+    log('share: succeeded')
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      log('share: user cancelled')
+      return
+    }
 
-  const jsonFile = new File([json], buildFilename(setlist, 'json'), { type: 'application/json' })
-  const jsonFiles = [jsonFile]
-
-  const canShareJson = navigator.canShare?.({ files: jsonFiles })
-  log(`canShare(json): ${canShareJson}`)
-
-  if (canShareJson) {
-    log('path: trying json file share')
-    const result = await shareNative({ files: jsonFiles, title: setlist.name }, log)
-    if (result !== 'rejected') return
-    log('path: json file share rejected — trying text fallback')
+    const name = error instanceof Error ? error.name : String(error)
+    const message = error instanceof Error ? error.message : ''
+    log(`share: rejected — ${name}: ${message} → download`)
+    exportSetlist(setlist)
   }
-
-  const textFile = new File([json], buildFilename(setlist, 'txt'), { type: 'text/plain' })
-  const textFiles = [textFile]
-
-  const canShareText = navigator.canShare?.({ files: textFiles })
-  log(`canShare(txt): ${canShareText}`)
-
-  if (canShareText) {
-    log('path: trying txt file share')
-    const result = await shareNative({ files: textFiles, title: setlist.name }, log)
-    if (result !== 'rejected') return
-    log('path: txt file share rejected — trying text fallback')
-  }
-
-  log('path: trying text-only share')
-  const result = await shareNative({ title: setlist.name, text: json }, log)
-  if (result !== 'rejected') return
-
-  log('path: text share failed → download')
-  exportSetlist(setlist)
 }
