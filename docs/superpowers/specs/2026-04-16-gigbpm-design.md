@@ -50,7 +50,7 @@ GigBPM is a mobile-first Progressive Web App (PWA) that helps musicians manage a
 type ClickSound = 'wood' | 'beep' | 'tick'
 
 interface Song {
-  id: string        // crypto.randomUUID()
+  id: string        // crypto.randomUUID() with local fallback
   name: string
   bpm: number       // 20–300
 }
@@ -235,7 +235,9 @@ metronome.onBeat(callback: () => void): void      // replaces any previously reg
 **Share (per setlist):**
 - Triggered from the setlist action strip
 - Uses Web Share API to share the JSON file via the native OS share sheet
-- Falls back to file download if `navigator.canShare({ files })` returns false
+- If JSON file sharing is unsupported, tries sharing a `.txt` file containing the same JSON for Chromium Android compatibility
+- If file sharing is unavailable but native text sharing exists, shares the JSON content as text
+- Falls back to file download if no supported native share variant is available
 - User cancelling the share sheet is handled silently
 
 **Import:**

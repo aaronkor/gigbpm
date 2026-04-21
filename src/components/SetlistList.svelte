@@ -188,7 +188,7 @@
   <div class="bottom-actions">
     <label class="btn-secondary">
       Import
-      <input type="file" accept=".json" onchange={handleImport} hidden />
+      <input type="file" accept=".json,.txt,application/json,text/plain" onchange={handleImport} hidden />
     </label>
     <button class="btn-primary" onclick={handleCreate}>+ New Setlist</button>
   </div>

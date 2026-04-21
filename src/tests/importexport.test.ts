@@ -92,6 +92,7 @@ describe('shareSetlist', () => {
     name: 'My Gig',
     songs: [{ id: 's1', name: 'Track', bpm: 120 }],
   }
+  type FileShareData = { files: File[] }
 
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -121,18 +122,19 @@ describe('shareSetlist', () => {
     const call = shareMock.mock.calls[0][0] as { files: File[]; title: string }
     expect(call.title).toBe('My Gig')
     expect(call.files[0].name).toMatch(/setlist-my-gig\.json$/)
+    expect(call.files[0].type).toBe('application/json')
     expect(canShareMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: 'My Gig',
+        files: expect.any(Array),
       }),
     )
   })
 
-  it('retries with files-only share data when title is unsupported', async () => {
+  it('shares a text file when JSON files are unsupported', async () => {
     const shareMock = vi.fn().mockResolvedValue(undefined)
-    const canShareMock = vi
-      .fn()
-      .mockImplementation((data: { files: File[]; title?: string }) => !data.title)
+    const canShareMock = vi.fn().mockImplementation((data: FileShareData) => {
+      return data.files[0].type === 'text/plain'
+    })
 
     Object.defineProperty(globalThis.navigator, 'canShare', {
       value: canShareMock,
@@ -145,25 +147,45 @@ describe('shareSetlist', () => {
 
     await shareSetlist(setlist)
 
-    expect(canShareMock).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        title: 'My Gig',
-      }),
-    )
-    expect(canShareMock).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        files: expect.any(Array),
-      }),
-    )
+    expect(canShareMock).toHaveBeenCalledTimes(2)
+    expect(canShareMock.mock.calls[0][0].files[0].name).toBe('setlist-my-gig.json')
+    expect(canShareMock.mock.calls[0][0].files[0].type).toBe('application/json')
+    expect(canShareMock.mock.calls[1][0].files[0].name).toBe('setlist-my-gig.txt')
+    expect(canShareMock.mock.calls[1][0].files[0].type).toBe('text/plain')
     expect(shareMock).toHaveBeenCalledOnce()
-    expect(shareMock).toHaveBeenCalledWith({
-      files: expect.any(Array),
+    const call = shareMock.mock.calls[0][0] as { files: File[]; title: string }
+    expect(call.title).toBe('My Gig')
+    expect(call.files[0].name).toBe('setlist-my-gig.txt')
+    expect(call.files[0].type).toBe('text/plain')
+  })
+
+  it('shares text when file sharing is not supported', async () => {
+    const shareMock = vi.fn().mockResolvedValue(undefined)
+
+    Object.defineProperty(globalThis.navigator, 'canShare', {
+      value: vi.fn().mockReturnValue(false),
+      configurable: true,
+    })
+    Object.defineProperty(globalThis.navigator, 'share', {
+      value: shareMock,
+      configurable: true,
+    })
+
+    await shareSetlist(setlist)
+
+    expect(shareMock).toHaveBeenCalledOnce()
+    const call = shareMock.mock.calls[0][0] as { title: string; text: string }
+    expect(call.title).toBe('My Gig')
+    expect(JSON.parse(call.text)).toEqual({
+      version: 1,
+      setlist: {
+        name: 'My Gig',
+        songs: [{ name: 'Track', bpm: 120 }],
+      },
     })
   })
 
-  it('falls back to export when file sharing is not supported', async () => {
+  it('falls back to export when native sharing is not supported', async () => {
     const shareMock = vi.fn()
     const createObjectUrlMock = vi.fn(() => 'blob:mock')
     const revokeObjectUrlMock = vi.fn()
@@ -198,7 +220,7 @@ describe('shareSetlist', () => {
       configurable: true,
     })
     Object.defineProperty(globalThis.navigator, 'share', {
-      value: shareMock,
+      value: undefined,
       configurable: true,
     })
 
@@ -224,7 +246,7 @@ describe('shareSetlist', () => {
     await expect(shareSetlist(setlist)).resolves.toBeUndefined()
   })
 
-  it('falls back to export when navigator.share rejects with a non-AbortError', async () => {
+  it('falls back to export when native file and text sharing reject', async () => {
     const shareError = new Error('Network failure')
     const createObjectUrlMock = vi.fn(() => 'blob:mock')
     const revokeObjectUrlMock = vi.fn()
@@ -264,6 +286,7 @@ describe('shareSetlist', () => {
     })
 
     await expect(shareSetlist(setlist)).resolves.toBeUndefined()
+    expect(globalThis.navigator.share).toHaveBeenCalledTimes(2)
     expect(clickMock).toHaveBeenCalledOnce()
     expect(createObjectUrlMock).toHaveBeenCalledOnce()
   })
