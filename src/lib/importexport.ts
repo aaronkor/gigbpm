@@ -1,4 +1,5 @@
 import { BPM_MAX, BPM_MIN } from './types'
+import { generateId } from './id'
 import type { Setlist } from './types'
 
 export interface ExportPayload {
@@ -54,14 +55,14 @@ export function validateImport(data: unknown): Setlist {
     }
 
     return {
-      id: crypto.randomUUID(),
+      id: generateId(),
       name: song.name,
       bpm: song.bpm,
     }
   })
 
   return {
-    id: crypto.randomUUID(),
+    id: generateId(),
     name: setlist.name,
     songs,
   }
@@ -77,14 +78,22 @@ export function buildExportPayload(setlist: Setlist): ExportPayload {
   }
 }
 
+function buildExportJson(setlist: Setlist): string {
+  return JSON.stringify(buildExportPayload(setlist), null, 2)
+}
+
+function buildFilename(setlist: Setlist, extension: string): string {
+  return `setlist-${setlist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.${extension}`
+}
+
 export function exportSetlist(setlist: Setlist): void {
-  const json = JSON.stringify(buildExportPayload(setlist), null, 2)
+  const json = buildExportJson(setlist)
   const blob = new Blob([json], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
 
   anchor.href = url
-  anchor.download = `setlist-${setlist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`
+  anchor.download = buildFilename(setlist, 'json')
   document.body.appendChild(anchor)
   anchor.click()
   document.body.removeChild(anchor)
@@ -92,35 +101,25 @@ export function exportSetlist(setlist: Setlist): void {
 }
 
 export async function shareSetlist(setlist: Setlist): Promise<void> {
-  const payload = buildExportPayload(setlist)
-  const json = JSON.stringify(payload, null, 2)
-  const blob = new Blob([json], { type: 'application/json' })
-  const filename = `setlist-${setlist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`
-  const file = new File([blob], filename, { type: 'application/json' })
-  const fileShareData = { files: [file] }
-  const titledShareData = { ...fileShareData, title: setlist.name }
+  const json = buildExportJson(setlist)
 
-  if (navigator.canShare?.(titledShareData)) {
-    try {
-      await navigator.share(titledShareData)
-      return
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return
-      }
-    }
+  if (typeof navigator.share !== 'function') {
+    exportSetlist(setlist)
+    return
   }
 
-  if (navigator.canShare?.(fileShareData)) {
-    try {
-      await navigator.share(fileShareData)
+  // canShare({ files }) returns true on Android Chrome but share() immediately
+  // throws NotAllowedError (no app handles the type), which consumes transient
+  // activation and makes every subsequent share() call fail with "user gesture"
+  // errors. Use text-only share as the single shot — it works on all platforms
+  // that support the Web Share API.
+  try {
+    await navigator.share({ title: setlist.name, text: json })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
       return
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return
-      }
     }
-  }
 
-  exportSetlist(setlist)
+    exportSetlist(setlist)
+  }
 }

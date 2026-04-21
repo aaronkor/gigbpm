@@ -1,5 +1,6 @@
 import { get, writable } from 'svelte/store'
 
+import { generateId } from '../lib/id'
 import { loadSetlists, saveSetlists } from '../lib/storage'
 import type { Setlist, Song } from '../lib/types'
 
@@ -30,7 +31,7 @@ function createSetlistsStore() {
     },
 
     add(name: string): Setlist {
-      const setlist: Setlist = { id: crypto.randomUUID(), name, songs: [] }
+      const setlist: Setlist = { id: generateId(), name, songs: [] }
 
       updateAll((all) => [...all, setlist])
 
@@ -46,7 +47,7 @@ function createSetlistsStore() {
     },
 
     addSong(setlistId: string, song: Omit<Song, 'id'>): Song {
-      const newSong: Song = { id: crypto.randomUUID(), ...song }
+      const newSong: Song = { id: generateId(), ...song }
 
       updateAll((all) =>
         all.map((setlist) =>
