@@ -305,7 +305,8 @@ describe('shareSetlist', () => {
     })
 
     await expect(shareSetlist(setlist)).resolves.toBeUndefined()
-    expect(globalThis.navigator.share).toHaveBeenCalledOnce()
+    // cascades through json file → txt file → text-only before downloading
+    expect(globalThis.navigator.share).toHaveBeenCalledTimes(3)
     expect(clickMock).toHaveBeenCalledOnce()
     expect(createObjectUrlMock).toHaveBeenCalledOnce()
   })

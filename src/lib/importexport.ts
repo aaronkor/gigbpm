@@ -100,21 +100,23 @@ export function exportSetlist(setlist: Setlist): void {
   URL.revokeObjectURL(url)
 }
 
-async function shareNative(data: ShareData, log: (msg: string) => void): Promise<boolean> {
+type ShareResult = 'ok' | 'cancelled' | 'rejected'
+
+async function shareNative(data: ShareData, log: (msg: string) => void): Promise<ShareResult> {
   try {
     await navigator.share(data)
     log('share: succeeded')
-    return true
+    return 'ok'
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       log('share: user cancelled (AbortError)')
-      return true
+      return 'cancelled'
     }
 
     const name = error instanceof Error ? error.name : String(error)
     const message = error instanceof Error ? error.message : ''
     log(`share: rejected — ${name}: ${message}`)
-    return false
+    return 'rejected'
   }
 }
 
@@ -139,13 +141,9 @@ export async function shareSetlist(setlist: Setlist, log: (msg: string) => void 
 
   if (canShareJson) {
     log('path: trying json file share')
-    if (await shareNative({ files: jsonFiles, title: setlist.name }, log)) {
-      return
-    }
-
-    log('path: json file share failed → download')
-    exportSetlist(setlist)
-    return
+    const result = await shareNative({ files: jsonFiles, title: setlist.name }, log)
+    if (result !== 'rejected') return
+    log('path: json file share rejected — trying text fallback')
   }
 
   const textFile = new File([json], buildFilename(setlist, 'txt'), { type: 'text/plain' })
@@ -156,19 +154,14 @@ export async function shareSetlist(setlist: Setlist, log: (msg: string) => void 
 
   if (canShareText) {
     log('path: trying txt file share')
-    if (await shareNative({ files: textFiles, title: setlist.name }, log)) {
-      return
-    }
-
-    log('path: txt file share failed → download')
-    exportSetlist(setlist)
-    return
+    const result = await shareNative({ files: textFiles, title: setlist.name }, log)
+    if (result !== 'rejected') return
+    log('path: txt file share rejected — trying text fallback')
   }
 
   log('path: trying text-only share')
-  if (await shareNative({ title: setlist.name, text: json }, log)) {
-    return
-  }
+  const result = await shareNative({ title: setlist.name, text: json }, log)
+  if (result !== 'rejected') return
 
   log('path: text share failed → download')
   exportSetlist(setlist)
