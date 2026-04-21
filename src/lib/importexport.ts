@@ -100,13 +100,10 @@ export function exportSetlist(setlist: Setlist): void {
   URL.revokeObjectURL(url)
 }
 
-export async function shareSetlist(setlist: Setlist, log: (msg: string) => void = () => {}): Promise<void> {
+export async function shareSetlist(setlist: Setlist): Promise<void> {
   const json = buildExportJson(setlist)
 
-  log(`navigator.share type: ${typeof navigator.share}`)
-
   if (typeof navigator.share !== 'function') {
-    log('path: no navigator.share → download')
     exportSetlist(setlist)
     return
   }
@@ -116,19 +113,13 @@ export async function shareSetlist(setlist: Setlist, log: (msg: string) => void 
   // activation and makes every subsequent share() call fail with "user gesture"
   // errors. Use text-only share as the single shot — it works on all platforms
   // that support the Web Share API.
-  log('path: text-only share')
   try {
     await navigator.share({ title: setlist.name, text: json })
-    log('share: succeeded')
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      log('share: user cancelled')
       return
     }
 
-    const name = error instanceof Error ? error.name : String(error)
-    const message = error instanceof Error ? error.message : ''
-    log(`share: rejected — ${name}: ${message} → download`)
     exportSetlist(setlist)
   }
 }

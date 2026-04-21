@@ -22,8 +22,6 @@
   let renameInput = $state<HTMLInputElement | null>(null)
   let expandedId = $state<string | null>(null)
   let showAbout = $state(false)
-  let debugLog = $state<string[]>([])
-  const debugMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug')
 
   function toast(message: string, duration = 2500): void {
     if (toastTimer) {
@@ -84,12 +82,8 @@
   }
 
   async function handleShare(setlist: Setlist): Promise<void> {
-    if (debugMode) {
-      debugLog = [`--- share: ${setlist.name} ---`]
-    }
-
     try {
-      await shareSetlist(setlist, debugMode ? (msg) => { debugLog = [...debugLog, msg] } : undefined)
+      await shareSetlist(setlist)
     } catch {
       toast("Couldn't share setlist")
     }
@@ -201,15 +195,6 @@
 </div>
 
 <Toast message={toastMessage} show={showToast} />
-
-{#if debugMode && debugLog.length > 0}
-  <div class="debug-panel">
-    <button class="debug-clear" onclick={() => { debugLog = [] }}>✕</button>
-    {#each debugLog as line}
-      <div class="debug-line">{line}</div>
-    {/each}
-  </div>
-{/if}
 
 <style>
   .screen {
@@ -446,39 +431,6 @@
     font-weight: 600;
     cursor: pointer;
     text-align: center;
-  }
-
-  .debug-panel {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    max-height: 50vh;
-    overflow-y: auto;
-    background: rgba(0, 0, 0, 0.92);
-    border-top: 2px solid #f90;
-    padding: 8px 10px 24px;
-    font-family: monospace;
-    font-size: 11px;
-    color: #f90;
-    z-index: 9999;
-  }
-
-  .debug-line {
-    white-space: pre-wrap;
-    word-break: break-all;
-    padding: 1px 0;
-  }
-
-  .debug-clear {
-    float: right;
-    background: none;
-    border: 1px solid #f90;
-    color: #f90;
-    font-size: 11px;
-    padding: 1px 5px;
-    cursor: pointer;
-    margin-bottom: 4px;
   }
 
   @media (max-width: 360px) {
