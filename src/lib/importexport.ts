@@ -100,35 +100,50 @@ export function exportSetlist(setlist: Setlist): void {
   URL.revokeObjectURL(url)
 }
 
-async function shareNative(data: ShareData): Promise<boolean> {
+async function shareNative(data: ShareData, log: (msg: string) => void): Promise<boolean> {
   try {
     await navigator.share(data)
+    log('share: succeeded')
     return true
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
+      log('share: user cancelled (AbortError)')
       return true
     }
 
+    const name = error instanceof Error ? error.name : String(error)
+    const message = error instanceof Error ? error.message : ''
+    log(`share: rejected — ${name}: ${message}`)
     return false
   }
 }
 
-export async function shareSetlist(setlist: Setlist): Promise<void> {
+export async function shareSetlist(setlist: Setlist, log: (msg: string) => void = () => {}): Promise<void> {
   const json = buildExportJson(setlist)
 
+  log(`navigator.share type: ${typeof navigator.share}`)
+
   if (typeof navigator.share !== 'function') {
+    log('path: no navigator.share → download')
     exportSetlist(setlist)
     return
   }
 
+  log(`navigator.canShare type: ${typeof navigator.canShare}`)
+
   const jsonFile = new File([json], buildFilename(setlist, 'json'), { type: 'application/json' })
   const jsonFiles = [jsonFile]
 
-  if (navigator.canShare?.({ files: jsonFiles })) {
-    if (await shareNative({ files: jsonFiles, title: setlist.name })) {
+  const canShareJson = navigator.canShare?.({ files: jsonFiles })
+  log(`canShare(json): ${canShareJson}`)
+
+  if (canShareJson) {
+    log('path: trying json file share')
+    if (await shareNative({ files: jsonFiles, title: setlist.name }, log)) {
       return
     }
 
+    log('path: json file share failed → download')
     exportSetlist(setlist)
     return
   }
@@ -136,18 +151,25 @@ export async function shareSetlist(setlist: Setlist): Promise<void> {
   const textFile = new File([json], buildFilename(setlist, 'txt'), { type: 'text/plain' })
   const textFiles = [textFile]
 
-  if (navigator.canShare?.({ files: textFiles })) {
-    if (await shareNative({ files: textFiles, title: setlist.name })) {
+  const canShareText = navigator.canShare?.({ files: textFiles })
+  log(`canShare(txt): ${canShareText}`)
+
+  if (canShareText) {
+    log('path: trying txt file share')
+    if (await shareNative({ files: textFiles, title: setlist.name }, log)) {
       return
     }
 
+    log('path: txt file share failed → download')
     exportSetlist(setlist)
     return
   }
 
-  if (await shareNative({ title: setlist.name, text: json })) {
+  log('path: trying text-only share')
+  if (await shareNative({ title: setlist.name, text: json }, log)) {
     return
   }
 
+  log('path: text share failed → download')
   exportSetlist(setlist)
 }
